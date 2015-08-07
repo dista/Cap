@@ -1,3 +1,9 @@
+/**
+ *  author dista@qq.com
+ *  2015
+ *
+ */
+
 package com.dista.org.cap;
 
 import android.app.Notification;
