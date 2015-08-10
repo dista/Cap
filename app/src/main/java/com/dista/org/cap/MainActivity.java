@@ -14,6 +14,7 @@ import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.media.projection.MediaProjection;
 import android.os.Bundle;
+import android.os.StrictMode;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
@@ -27,16 +28,23 @@ import android.media.projection.MediaProjectionManager;
 import android.widget.Toast;
 import android.hardware.display.DisplayManager;
 
+import com.dista.org.cap.exception.RtmpException;
+import com.dista.org.cap.net.RtmpClient;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.Inet4Address;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Timer;
 import java.util.TimerTask;
+
+import static android.widget.Toast.makeText;
 
 
 public class MainActivity extends Activity {
@@ -122,13 +130,13 @@ public class MainActivity extends Activity {
         b.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(CapService.data == null){
+                if (CapService.data == null) {
                     MediaProjectionManager mm = (MediaProjectionManager) ac.getSystemService(Context.MEDIA_PROJECTION_SERVICE);
                     ac.mm = mm;
 
                     Intent it = mm.createScreenCaptureIntent();
                     ac.startActivityForResult(it, 1);
-                } else if(CapService.IsRunning){
+                } else if (CapService.IsRunning) {
                     Intent intent = new Intent(ac, CapService.class);
                     intent.setAction("Stop");
 
@@ -141,6 +149,40 @@ public class MainActivity extends Activity {
 
                     startService(intent);
                     //bt.setText("Stop Cap");
+                }
+            }
+        });
+
+
+        // setup test
+        setUpTest();
+    }
+
+    private RtmpClient rc = null;
+
+    private void setUpTest(){
+        Button b = (Button)findViewById(R.id.test);
+
+        final MainActivity ac = this;
+
+        StrictMode.ThreadPolicy policy = new
+                StrictMode.ThreadPolicy.Builder().permitAll().build();
+        StrictMode.setThreadPolicy(policy);
+
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(rc == null){
+                    rc = new RtmpClient();
+                    try {
+                        rc.connect(new InetSocketAddress("192.168.1.111", 1935), 30000, "");
+                    } catch (RtmpException e) {
+                        Log.d("", e.toString());
+                        Toast.makeText(ac, "rtmp失败", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    rc.close();
+                    rc = null;
                 }
             }
         });
@@ -182,7 +224,7 @@ public class MainActivity extends Activity {
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if(requestCode == 1){
             if(resultCode != Activity.RESULT_OK){
-                Toast.makeText(this, R.string.start_failed, Toast.LENGTH_SHORT).show();
+                makeText(this, R.string.start_failed, Toast.LENGTH_SHORT).show();
                 return;
             }
 
