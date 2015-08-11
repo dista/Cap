@@ -26,11 +26,10 @@ public class Util {
         return ret;
     }
 
-    public static long readLongFromInput(InputStream input, boolean isBig, int size) throws IOException {
-        byte[] buf = readFromInput(input, size);
+    private static long convertToLong(byte[] buf, boolean isBig){
         long ret = 0;
 
-        for(int i = 0; i < size; i++){
+        for(int i = 0; i < buf.length; i++){
             if(isBig){
                 ret = (ret << 8) + (long)(buf[i] & 0xFF);
             } else {
@@ -39,6 +38,19 @@ public class Util {
         }
 
         return ret;
+    }
+
+    public static long readLongFromInput(InputStream input, boolean isBig, int size) throws IOException {
+        byte[] buf = readFromInput(input, size);
+
+        return convertToLong(buf, isBig);
+    }
+
+    public static long readLongFromByteBuffer(ByteBuffer bf, boolean isBig, int size){
+        byte[] buf = new byte[size];
+        bf.get(buf);
+
+        return convertToLong(buf, isBig);
     }
 
     public static byte[] IntToBytes(boolean isBig, long v, int bytesNum){

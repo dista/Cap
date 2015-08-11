@@ -1,5 +1,7 @@
 package com.dista.org.cap.net;
 
+import android.util.Log;
+
 import com.dista.org.cap.exception.RtmpException;
 import com.dista.org.cap.media.AVMetaData;
 import com.dista.org.cap.media.AVPacket;
@@ -14,6 +16,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
  * Created by dista on 2015/8/7.
@@ -72,11 +76,58 @@ public class RtmpClient {
 
         encoder = new RtmpEncoder();
         decoder = new RtmpDecoder();
+        decoder.setInput(sock.getInputStream());
+    }
+
+    private boolean handleMsg(RtmpMsg msg){
+        int typeId = msg.getHeader().getMsgTypeId();
+
+        boolean isHandled = false;
+
+        // SetChunkSize;
+        if(typeId == 0x01){
+            int newChunkSize = ByteBuffer.wrap(msg.getData()).order(ByteOrder.BIG_ENDIAN).getInt();
+
+            Log.d("", "new chunkSize: " + newChunkSize);
+            decoder.setChunkSize(newChunkSize);
+
+            isHandled = true;
+        } else if(typeId == 0x14){
+        } else if(typeId == 0x4){
+            isHandled = true;
+        } else if(typeId == 0x5){
+            isHandled = true;
+        } else if(typeId == 0x6){
+            isHandled = true;
+        }
+
+        return isHandled;
     }
 
     public void publish(AVMetaData meta) throws RtmpException {
         try {
             sendConnect();
+
+            while(true) {
+                RtmpMsg msg = decoder.decode();
+
+                boolean isHandled = handleMsg(msg);
+
+                if(!isHandled){
+                    int typeId = msg.getHeader().getMsgTypeId();
+                    ByteBuffer bf = ByteBuffer.wrap(msg.getData());
+
+                    if(typeId == 0x14){
+                        String cmd = Amf.readString(bf);
+
+                        if(cmd.equals("_result")){
+
+                        } else {
+                            throw new RtmpException("proto error. publish: " + cmd);
+                        }
+                    }
+                }
+            }
         } catch (IOException e) {
             e.printStackTrace();
             throw new RtmpException("publish", e);

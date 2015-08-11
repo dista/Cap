@@ -2,6 +2,7 @@ package com.dista.org.cap.proto;
 
 import android.util.Log;
 
+import com.dista.org.cap.exception.RtmpException;
 import com.dista.org.cap.util.Util;
 
 import java.io.IOException;
@@ -84,6 +85,21 @@ public class Amf {
         }
 
         return;
+    }
+
+    public static String readString(ByteBuffer bf) throws RtmpException {
+        int type = bf.get();
+
+        if(type != AMF0_STRING){
+            throw new RtmpException("wrong type, should be string");
+        }
+
+        int size = (int) Util.readLongFromByteBuffer(bf, true, 2);
+
+        byte[] str = new byte[size];
+        bf.get(str);
+
+        return new String(str);
     }
 
     private static void writeObjectKey(OutputStream os, String name) throws IOException {
