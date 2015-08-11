@@ -120,11 +120,16 @@ public class RtmpClient {
                     if(typeId == 0x14){
                         String cmd = Amf.readString(bf);
 
+                        // TODO: handle this
                         if(cmd.equals("_result")){
 
                         } else {
                             throw new RtmpException("proto error. publish: " + cmd);
                         }
+
+                        Amf.readNumber(bf);
+
+
                     }
                 }
             }

@@ -102,6 +102,105 @@ public class Amf {
         return new String(str);
     }
 
+    public static double readNumber(ByteBuffer bf) throws RtmpException {
+        int type = bf.get();
+
+        if(type != AMF0_NUMBER){
+            throw new RtmpException("wrong type, should be number");
+        }
+
+        return bf.getDouble();
+    }
+
+    public static boolean readBoolean(ByteBuffer bf) throws RtmpException {
+        int type = bf.get();
+
+        if(type != AMF0_NUMBER){
+            throw new RtmpException("wrong type, should be boolean");
+        }
+
+        byte b = bf.get();
+
+        return !(b == 0);
+    }
+
+    public static String readObjectKey(ByteBuffer bf){
+        int size = (int) Util.readLongFromByteBuffer(bf, true, 2);
+
+        byte[] str = new byte[size];
+        bf.get(str);
+
+        return new String(str);
+    }
+
+    public static Object readObject(ByteBuffer bf, Class<?> clazz) throws IllegalAccessException, InstantiationException, RtmpException {
+        Object ret = clazz.newInstance();
+
+        int type = bf.get();
+
+        if(type != AMF0_OBJECT){
+            throw new RtmpException("wrong type, should be object");
+        }
+
+        // TODO: read fields
+
+        return ret;
+    }
+
+    public static void skipObjectLike(ByteBuffer bf, boolean isEcmaArray) throws RtmpException {
+        int type = bf.get();
+
+        if(type != AMF0_OBJECT){
+            throw new RtmpException("wrong type, should be object");
+        }
+
+        if(isEcmaArray){
+            Util.readLongFromByteBuffer(bf, true, 2);
+        }
+
+        while(true) {
+            readObjectKey(bf);
+
+            type = bf.get(bf.position());
+
+            skip(bf);
+
+            if(type == AMF0_OBJECT_END){
+                break;
+            }
+        }
+    }
+
+    public static void skip(ByteBuffer bf) throws RtmpException {
+        int type = bf.get(bf.position());
+
+        switch (type){
+            case AMF0_NUMBER:
+                readNumber(bf);
+                break;
+            case AMF0_BOOLEAN:
+                readBoolean(bf);
+                break;
+            case AMF0_STRING:
+                readString(bf);
+                break;
+            case AMF0_OBJECT:
+                skipObjectLike(bf, false);
+                break;
+            case AMF0_NULL:
+                bf.get();
+                break;
+            case AMF0_UNDEFINED:
+                bf.get();
+                break;
+            case AMF0_ECMA_ARRAY:
+                skipObjectLike(bf, true);
+                break;
+            default:
+                throw new RtmpException("skip, not supported");
+        }
+    }
+
     private static void writeObjectKey(OutputStream os, String name) throws IOException {
         byte[] key = name.getBytes(StandardCharsets.US_ASCII);
         Util.OutStreamWriteInt(os, true, key.length, 2);
