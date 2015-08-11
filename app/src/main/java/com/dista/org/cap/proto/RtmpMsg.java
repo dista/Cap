@@ -14,6 +14,10 @@ public class RtmpMsg {
 
     private RtmpMsgHeader header;
 
+    public RtmpMsg(){
+        header = new RtmpMsgHeader();
+    }
+
     public byte[] getData() {
         return data;
     }

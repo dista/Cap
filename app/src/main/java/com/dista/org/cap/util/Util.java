@@ -2,6 +2,7 @@ package com.dista.org.cap.util;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 
 /**
  * Created by dista on 2015/8/10.
@@ -22,5 +23,36 @@ public class Util {
         }
 
         return ret;
+    }
+
+    public static long readLongFromInput(InputStream input, boolean isBig, int size) throws IOException {
+        byte[] buf = readFromInput(input, size);
+        long ret = 0;
+
+        for(int i = 0; i < size; i++){
+            if(isBig){
+                ret = (ret << 8) + (long)(buf[i] & 0xFF);
+            } else {
+                ret = ret + (((long)(buf[i] & 0xFF)) << (i * 8));
+            }
+        }
+
+        return ret;
+    }
+
+    public static void ByteBufferWriteInt(ByteBuffer bf, boolean isBig, long v, int bytesNum){
+        byte[] tmp = new byte[bytesNum];
+        for(int i = 0; i < bytesNum; i++){
+            byte p;
+            if(isBig){
+                p = (byte)(v >> (8 * ((bytesNum - 1 - i))));
+            } else{
+                p = (byte)(v >> (8 * i));
+            }
+
+            tmp[i] = p;
+        }
+
+        bf.put(tmp);
     }
 }

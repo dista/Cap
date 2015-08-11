@@ -1,5 +1,7 @@
 package com.dista.org.cap.proto;
 
+import com.dista.org.cap.util.Util;
+
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.Vector;
@@ -113,7 +115,65 @@ public class RtmpEncoder {
 
     private void writeHeader(ByteBuffer bf, RtmpChunkStream cs, RtmpMsg msg,
                              int chunkType, boolean isFirstChunk){
-        // TODO： implement it
+        int csId = msg.getHeader().getCsId();
+
+        if(csId < 64){
+            bf.put((byte)((chunkType << 6) | csId));
+        } else if(csId < 320){
+            bf.put((byte)(chunkType << 6));
+            bf.put((byte)(csId - 64));
+        } else{
+            bf.put((byte)((chunkType << 6) | 0x01));
+            bf.put((byte)((csId - 64) & 0xff));
+            bf.put((byte)(((csId - 64) >> 8) & 0xff));
+        }
+
+        boolean hasExtTime = false;
+        long extTime = 0;
+
+        if(chunkType == 0){
+            cs.setWriteTimestamp(msg.getHeader().getCalTimestamp());
+
+            if(msg.getHeader().getCalTimestamp() >= 0xFFFFFF){
+                hasExtTime = true;
+                extTime = msg.getHeader().getCalTimestamp() & 0x3FFFFFFF;
+                Util.ByteBufferWriteInt(bf, true, 0xFFFFFF, 3);
+            } else {
+                Util.ByteBufferWriteInt(bf, true, msg.getHeader().getCalTimestamp(), 3);
+            }
+
+            Util.ByteBufferWriteInt(bf, true, msg.getData().length, 3);
+            bf.put((byte) (msg.getHeader().getMsgTypeId()));
+            Util.ByteBufferWriteInt(bf, false, msg.getHeader().getMsgStreamId(), 4);
+
+        } else if((chunkType == 1) || (chunkType == 2)){
+            long delta = msg.getHeader().getCalTimestamp() - cs.getTimestamp();
+            cs.setWriteTimestamp(delta);
+
+            if(delta >= 0xFFFFFF){
+                hasExtTime = true;
+                extTime = delta & 0x3FFFFFFF;
+                Util.ByteBufferWriteInt(bf, true, 0xFFFFFF, 3);
+            } else {
+                Util.ByteBufferWriteInt(bf, true, delta, 3);
+            }
+
+            if(chunkType == 1){
+                Util.ByteBufferWriteInt(bf, true, msg.getData().length, 3);
+                bf.put((byte) (msg.getHeader().getMsgTypeId()));
+            }
+        } else{
+            if(!isFirstChunk){
+                if(cs.getWriteTimestamp() >= 0xFFFFFF){
+                    hasExtTime = true;
+                    extTime = cs.getWriteTimestamp() & 0x3FFFFFFF;
+                }
+            }
+        }
+
+        if(hasExtTime){
+            Util.ByteBufferWriteInt(bf, true, extTime, 4);
+        }
     }
 
     private byte[] encodeInternal(RtmpMsg msg, int ct){
