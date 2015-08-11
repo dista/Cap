@@ -22,12 +22,6 @@ public class RtmpDecoder {
         private long rCalTimestamp;
     }
 
-    private enum DecoderState {
-        START, FMT_DONE, BASIC_HEADER_DONE,
-        MSG_HEADER_DONE, EXTEND_TIMESTAMP_DONE,
-        READ_CHUNK_BODY
-    }
-
     private int chunkSize;
 
     public int getChunkSize() {
@@ -48,10 +42,8 @@ public class RtmpDecoder {
         this.input = input;
     }
 
-    private DecoderState state;
-
     public RtmpDecoder(){
-        this.state = DecoderState.START;
+        this.chunkSize = 128;
         this.ds = new Vector<RtmpDecoderStream>();
     }
 
@@ -78,60 +70,152 @@ public class RtmpDecoder {
 
     public RtmpMsg decode() throws IOException, RtmpException {
         long tmp;
+
         RtmpMsg msg = new RtmpMsg();
         RtmpMsgHeader h = msg.getHeader();
+        int bodyRead = 0;
 
-        tmp = Util.readLongFromInput(input, true, 1);
-        h.setFmt((int) (tmp >> 6));
-        h.setCsId((int) (tmp & ((1 << 6) - 1)));
+        while(true) {
 
-        // FMT_DONE
-        if(h.getCsId() <= 1){
-            if(h.getCsId() == 0){
-                h.setCsId((int) (64 + Util.readLongFromInput(input, true, 1)));
-            } else { // csId == 1
-                h.setCsId((int) (64 + Util.readLongFromInput(input, true, 2)));
-            }
-        }
+            tmp = Util.readLongFromInput(input, true, 1);
+            h.setFmt((int) (tmp >> 6));
+            h.setCsId((int) (tmp & ((1 << 6) - 1)));
 
-        // BASIC_HEADER_DONE
-        RtmpDecoderStream rd = findDecoderStream(h.getCsId());
-
-        if(rd == null && h.getFmt() != 0){
-            throw new RtmpException("proto error, no rd");
-        }
-
-        int fmt = h.getFmt();
-        boolean hasExtTime = false;
-
-        if(fmt == 0){
-            h.setTimestamp(Util.readLongFromInput(input, true, 3));
-            h.setMessageLen((int) Util.readLongFromInput(input, true, 3));
-            h.setMsgTypeId((short) Util.readLongFromInput(input, true, 1));
-            h.setMsgStreamId((int) Util.readLongFromInput(input, false, 4));
-
-            if(h.getTimestamp() == 0xFFFFFF){
-                hasExtTime = true;
+            // FMT_DONE
+            if (h.getCsId() <= 1) {
+                if (h.getCsId() == 0) {
+                    h.setCsId((int) (64 + Util.readLongFromInput(input, true, 1)));
+                } else { // csId == 1
+                    h.setCsId((int) (64 + Util.readLongFromInput(input, true, 2)));
+                }
             }
 
-            if(rd == null){
-                rd = addDecoderStream(h);
+            // BASIC_HEADER_DONE
+            RtmpDecoderStream rd = findDecoderStream(h.getCsId());
+
+            if (rd == null && h.getFmt() != 0) {
+                throw new RtmpException("proto error, no rd");
             }
 
-            rd.rTimeDelta = 0;
-            rd.rMessageLen = h.getMessageLen();
-            rd.rMsgTypeId = h.getMsgTypeId();
-            rd.rMsgStreamId = h.getMsgStreamId();
-            rd.rTimestamp = h.getTimestamp();
+            int fmt = h.getFmt();
+            boolean hasExtTime = false;
 
-            if(h.getTimestamp() != 0xFFFFFF){
-                h.setCalTimestamp(h.getTimestamp());
-                rd.rCalTimestamp = h.getCalTimestamp();
+            if (fmt == 0) {
+                h.setTimestamp(Util.readLongFromInput(input, true, 3));
+                h.setMessageLen((int) Util.readLongFromInput(input, true, 3));
+                h.setMsgTypeId((short) Util.readLongFromInput(input, true, 1));
+                h.setMsgStreamId((int) Util.readLongFromInput(input, false, 4));
+
+                if (h.getTimestamp() == 0xFFFFFF) {
+                    hasExtTime = true;
+                }
+
+                if (rd == null) {
+                    rd = addDecoderStream(h);
+                }
+
+                rd.rTimeDelta = 0;
+                rd.rMessageLen = h.getMessageLen();
+                rd.rMsgTypeId = h.getMsgTypeId();
+                rd.rMsgStreamId = h.getMsgStreamId();
+                rd.rTimestamp = h.getTimestamp();
+
+                if (h.getTimestamp() != 0xFFFFFF) {
+                    h.setCalTimestamp(h.getTimestamp());
+                    rd.rCalTimestamp = h.getCalTimestamp();
+                }
+            } else if (fmt == 1) {
+                h.setTimestamp(Util.readLongFromInput(input, true, 3));
+                h.setMessageLen((int) Util.readLongFromInput(input, true, 3));
+                h.setMsgTypeId((short) Util.readLongFromInput(input, true, 1));
+
+                if (h.getTimestamp() == 0xFFFFFF) {
+                    hasExtTime = true;
+                }
+
+                rd.rTimeDelta = h.getTimestamp();
+                rd.rMessageLen = h.getMessageLen();
+                rd.rMsgTypeId = h.getMsgTypeId();
+
+                if (h.getTimestamp() != 0xFFFFFF) {
+                    h.setCalTimestamp(rd.rCalTimestamp + rd.rTimeDelta);
+                    rd.rCalTimestamp = h.getCalTimestamp();
+                }
+
+                h.setMsgStreamId((int) rd.rMsgStreamId);
+
+            } else if (fmt == 2) {
+                h.setTimestamp(Util.readLongFromInput(input, true, 3));
+
+                if (h.getTimestamp() == 0xFFFFFF) {
+                    hasExtTime = true;
+                }
+
+                rd.rTimeDelta = h.getTimestamp();
+                h.setMessageLen((int) rd.rMessageLen);
+                h.setMsgTypeId((short) rd.rMsgTypeId);
+
+                if (!hasExtTime) {
+                    h.setCalTimestamp(rd.rCalTimestamp + rd.rTimeDelta);
+                    rd.rCalTimestamp = h.getCalTimestamp();
+                }
+
+                h.setMsgStreamId((int) rd.rMsgStreamId);
+
+            } else if (fmt == 3) {
+                if(rd.header.getTimestamp() == 0xFFFFFF && msg.getData() != null){
+                    hasExtTime = true;
+                }
+
+                h.setMessageLen((int) rd.rMessageLen);
+                h.setMsgTypeId((short) rd.rMsgTypeId);
+
+                if(!hasExtTime && msg.getData() == null){
+                    h.setCalTimestamp(rd.rCalTimestamp + rd.rTimeDelta);
+                    rd.rCalTimestamp = h.getCalTimestamp();
+                }
+
+                h.setMsgStreamId((int) rd.rMsgStreamId);
+
+            } else {
+                throw new RtmpException("bad fmt");
             }
-        } else if(fmt == 1){
 
-        } else if(fmt == 2){
-        } else if(fmt == 3){
+            // ext time
+            if(hasExtTime){
+                h.setExtendTimestamp((int) Util.readLongFromInput(input, true, 4));
+                rd.rExtendTimestamp = h.getExtendTimestamp();
+
+                if(msg.getData() == null){
+                    if(h.getFmt() != 0){
+                        h.setCalTimestamp(rd.rCalTimestamp + rd.rExtendTimestamp);
+                        rd.rCalTimestamp = h.getCalTimestamp();
+
+                    } else {
+                        h.setCalTimestamp(rd.rExtendTimestamp);
+                        rd.rCalTimestamp = h.getCalTimestamp();
+                    }
+                }
+            }
+
+            //
+            if(msg.getData() == null){
+                msg.setData(new byte[h.getMessageLen()]);
+            }
+
+            int needRead = h.getMessageLen() - bodyRead;
+            if(needRead > chunkSize){
+                needRead = chunkSize;
+            }
+
+            byte[] readed = Util.readFromInput(input, needRead);
+            System.arraycopy(readed, 0, msg.getData(), bodyRead, needRead);
+
+            bodyRead += needRead;
+
+            if(msg.getHeader().getMessageLen() == bodyRead){
+                break;
+            }
         }
 
         return msg;

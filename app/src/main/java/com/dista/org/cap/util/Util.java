@@ -2,6 +2,7 @@ package com.dista.org.cap.util;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
 /**
@@ -40,7 +41,7 @@ public class Util {
         return ret;
     }
 
-    public static void ByteBufferWriteInt(ByteBuffer bf, boolean isBig, long v, int bytesNum){
+    public static byte[] IntToBytes(boolean isBig, long v, int bytesNum){
         byte[] tmp = new byte[bytesNum];
         for(int i = 0; i < bytesNum; i++){
             byte p;
@@ -53,6 +54,14 @@ public class Util {
             tmp[i] = p;
         }
 
-        bf.put(tmp);
+        return tmp;
+    }
+
+    public static void OutStreamWriteInt(OutputStream os, boolean isBig, long v, int bytesNum) throws IOException {
+        os.write(IntToBytes(isBig, v, bytesNum));
+    }
+
+    public static void ByteBufferWriteInt(ByteBuffer bf, boolean isBig, long v, int bytesNum){
+        bf.put(IntToBytes(isBig, v, bytesNum));
     }
 }

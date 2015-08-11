@@ -3,16 +3,10 @@ package com.dista.org.cap;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Paint;
 import android.graphics.Point;
-import android.graphics.PorterDuff;
 import android.hardware.display.VirtualDisplay;
 import android.media.MediaCodec;
-import android.media.MediaCodecInfo;
-import android.media.MediaFormat;
-import android.media.projection.MediaProjection;
 import android.os.Bundle;
 import android.os.StrictMode;
 import android.util.DisplayMetrics;
@@ -21,26 +15,19 @@ import android.view.Display;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.Surface;
-import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
 import android.media.projection.MediaProjectionManager;
 import android.widget.Toast;
-import android.hardware.display.DisplayManager;
 
 import com.dista.org.cap.exception.RtmpException;
+import com.dista.org.cap.media.AVMetaData;
 import com.dista.org.cap.net.RtmpClient;
+import com.dista.org.cap.proto.Amf;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.Inet4Address;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -175,7 +162,8 @@ public class MainActivity extends Activity {
                 if(rc == null){
                     rc = new RtmpClient();
                     try {
-                        rc.connect(new InetSocketAddress("192.168.1.111", 1935), 30000, "");
+                        rc.connect(new InetSocketAddress("192.168.1.111", 1935), 30000, "app/stream");
+                        rc.publish(new AVMetaData());
                     } catch (RtmpException e) {
                         Log.d("", e.toString());
                         Toast.makeText(ac, "rtmp失败", Toast.LENGTH_SHORT).show();

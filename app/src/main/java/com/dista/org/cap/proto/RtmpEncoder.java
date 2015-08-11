@@ -87,8 +87,8 @@ public class RtmpEncoder {
     private int chunkSize;
     private Vector<RtmpChunkStream> chunkStreams;
 
-    public RtmpEncoder(int chunkSize){
-        this.chunkSize = chunkSize;
+    public RtmpEncoder(){
+        this.chunkSize = 128;
         this.chunkStreams = new Vector<RtmpChunkStream>();
     }
 
@@ -110,7 +110,7 @@ public class RtmpEncoder {
         cs.setCsId(msg.getHeader().getCsId());
 
         chunkStreams.add(cs);
-        return null;
+        return cs;
     }
 
     private void writeHeader(ByteBuffer bf, RtmpChunkStream cs, RtmpMsg msg,
@@ -178,7 +178,7 @@ public class RtmpEncoder {
 
     private byte[] encodeInternal(RtmpMsg msg, int ct){
         int bufLen = msg.getData().length / chunkSize;
-        if(bufLen % chunkSize > 0){
+        if(msg.getData().length % chunkSize > 0){
             bufLen += 1;
         }
         bufLen *= (3 + 11 + 4 + chunkSize);
