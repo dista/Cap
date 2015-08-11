@@ -133,7 +133,7 @@ public class Amf {
         return new String(str);
     }
 
-    public static Object readObject(ByteBuffer bf, Class<?> clazz) throws IllegalAccessException, InstantiationException, RtmpException {
+    public static Object readObject(ByteBuffer bf, Class<?> clazz, boolean isEcmaArray) throws IllegalAccessException, InstantiationException, RtmpException, NoSuchFieldException {
         Object ret = clazz.newInstance();
 
         int type = bf.get();
@@ -142,7 +142,72 @@ public class Amf {
             throw new RtmpException("wrong type, should be object");
         }
 
-        // TODO: read fields
+        if(isEcmaArray){
+            Util.readLongFromByteBuffer(bf, true, 2);
+        }
+
+        // TODO: TEST following code.
+
+        while(true){
+            String key = readObjectKey(bf);
+
+            Field f = clazz.getDeclaredField(key);
+
+            type = bf.get(bf.position());
+
+            if(f == null){
+                skip(bf);
+            } else {
+                switch (type){
+                    case AMF0_BOOLEAN:
+                        if(f.getType() != Boolean.TYPE){
+                            throw new RtmpException("bad type");
+                        }
+                        f.setBoolean(ret, readBoolean(bf));
+                        break;
+                    case AMF0_ECMA_ARRAY:
+                        f.set(ret, readObject(bf, f.getClass(), true));
+                        break;
+                    case AMF0_OBJECT:
+                        f.set(ret, readObject(bf, f.getClass(), false));
+                        break;
+                    case AMF0_NULL:
+                        break;
+                    case AMF0_UNDEFINED:
+                        break;
+                    case AMF0_NUMBER:
+                        if(f.getType() != Number.class){
+                            throw new RtmpException("bad type");
+                        }
+
+                        Number n = (Number) readNumber(bf);
+
+                        if(f.getType() == Integer.class){
+                            f.setInt(ret, n.intValue());
+                        } else if(f.getType() == Long.class){
+                            f.setLong(ret, n.longValue());
+                        } else if(f.getType() == Double.class){
+                            f.setDouble(ret, n.doubleValue());
+                        } else if(f.getType() == Short.class){
+                            f.setShort(ret, n.shortValue());
+                        } else if(f.getType() == Byte.class){
+                            f.setByte(ret, n.byteValue());
+                        }
+
+                        break;
+                    case AMF0_STRING:
+                        if(f.getType() != String.class){
+                            throw new RtmpException("bad type");
+                        }
+                        f.set(ret, readString(bf));
+                        break;
+                }
+            }
+
+            if(type == AMF0_OBJECT_END){
+                break;
+            }
+        }
 
         return ret;
     }
