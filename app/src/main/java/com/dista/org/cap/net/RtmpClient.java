@@ -7,6 +7,7 @@ import com.dista.org.cap.media.AVMetaData;
 import com.dista.org.cap.media.AVPacket;
 import com.dista.org.cap.proto.Amf;
 import com.dista.org.cap.proto.ConnectObj;
+import com.dista.org.cap.proto.ConnectResultObj1;
 import com.dista.org.cap.proto.RtmpDecoder;
 import com.dista.org.cap.proto.RtmpEncoder;
 import com.dista.org.cap.proto.RtmpMsg;
@@ -104,7 +105,7 @@ public class RtmpClient {
         return isHandled;
     }
 
-    public void publish(AVMetaData meta) throws RtmpException {
+    public void publish(AVMetaData meta) throws RtmpException, NoSuchFieldException, InstantiationException {
         try {
             sendConnect();
 
@@ -129,7 +130,8 @@ public class RtmpClient {
 
                         Amf.readNumber(bf);
 
-
+                        // TODO: test this
+                        ConnectResultObj1 r1 = (ConnectResultObj1) Amf.readObject(bf, ConnectResultObj1.class);
                     }
                 }
             }

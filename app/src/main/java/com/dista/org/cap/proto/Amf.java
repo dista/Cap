@@ -133,20 +133,23 @@ public class Amf {
         return new String(str);
     }
 
-    public static Object readObject(ByteBuffer bf, Class<?> clazz, boolean isEcmaArray) throws IllegalAccessException, InstantiationException, RtmpException, NoSuchFieldException {
+    public static Object readObject(ByteBuffer bf, Class<?> clazz) throws IllegalAccessException, InstantiationException, RtmpException, NoSuchFieldException {
         Object ret = clazz.newInstance();
 
         int type = bf.get();
 
-        if(type != AMF0_OBJECT){
+        if(type != AMF0_OBJECT && type != AMF0_NULL && type != AMF0_UNDEFINED &&
+                type != AMF0_ECMA_ARRAY){
             throw new RtmpException("wrong type, should be object");
         }
 
-        if(isEcmaArray){
-            Util.readLongFromByteBuffer(bf, true, 2);
+        if(type == AMF0_NULL || type == AMF0_UNDEFINED){
+            return null;
         }
 
-        // TODO: TEST following code.
+        if(type == AMF0_ECMA_ARRAY){
+            Util.readLongFromByteBuffer(bf, true, 2);
+        }
 
         while(true){
             String key = readObjectKey(bf);
@@ -166,17 +169,17 @@ public class Amf {
                         f.setBoolean(ret, readBoolean(bf));
                         break;
                     case AMF0_ECMA_ARRAY:
-                        f.set(ret, readObject(bf, f.getClass(), true));
+                        f.set(ret, readObject(bf, f.getClass()));
                         break;
                     case AMF0_OBJECT:
-                        f.set(ret, readObject(bf, f.getClass(), false));
+                        f.set(ret, readObject(bf, f.getClass()));
                         break;
                     case AMF0_NULL:
                         break;
                     case AMF0_UNDEFINED:
                         break;
                     case AMF0_NUMBER:
-                        if(f.getType() != Number.class){
+                        if(f.getType().getSuperclass() != Number.class){
                             throw new RtmpException("bad type");
                         }
 
@@ -212,14 +215,14 @@ public class Amf {
         return ret;
     }
 
-    public static void skipObjectLike(ByteBuffer bf, boolean isEcmaArray) throws RtmpException {
+    public static void skipObjectLike(ByteBuffer bf) throws RtmpException {
         int type = bf.get();
 
-        if(type != AMF0_OBJECT){
+        if(type != AMF0_OBJECT && type != AMF0_ECMA_ARRAY){
             throw new RtmpException("wrong type, should be object");
         }
 
-        if(isEcmaArray){
+        if(type == AMF0_ECMA_ARRAY){
             Util.readLongFromByteBuffer(bf, true, 2);
         }
 
@@ -250,7 +253,7 @@ public class Amf {
                 readString(bf);
                 break;
             case AMF0_OBJECT:
-                skipObjectLike(bf, false);
+                skipObjectLike(bf);
                 break;
             case AMF0_NULL:
                 bf.get();
@@ -259,7 +262,7 @@ public class Amf {
                 bf.get();
                 break;
             case AMF0_ECMA_ARRAY:
-                skipObjectLike(bf, true);
+                skipObjectLike(bf);
                 break;
             default:
                 throw new RtmpException("skip, not supported");
