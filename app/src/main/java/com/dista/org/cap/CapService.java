@@ -11,6 +11,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Point;
@@ -75,8 +76,10 @@ public class CapService extends Service {
 
             int fps = 25;
 
+            SharedPreferences sp = getSharedPreferences("Cap", 0);
+
             MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", WIDTH, HEIGHT);
-            mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 1500000);
+            mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, sp.getInt("bitrate", 1000) * 1000);
             mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, fps);
             mediaFormat.setInteger(MediaFormat.KEY_CAPTURE_RATE, fps);
             mediaFormat.setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1000000 / fps);
@@ -125,7 +128,18 @@ public class CapService extends Service {
                     try {
                         RtmpClient rc = new RtmpClient();
 
-                        rc.connect(new InetSocketAddress("192.168.1.111", 1935), 30000, "app/stream");
+                        SharedPreferences sp = getSharedPreferences("Cap", 0);
+                        String ipPort = sp.getString("ip_port", "");
+                        String path = sp.getString("path", "");
+
+                        String[] vp = ipPort.split(":");
+
+                        if(vp.length != 2){
+                            rc.close();
+                            return null;
+                        }
+
+                        rc.connect(new InetSocketAddress(vp[0], Integer.parseInt(vp[1])), 30000, path);
                         AVMetaData meta = new AVMetaData();
                         meta.hasAudio = false;
                         meta.hasVideo = true;
@@ -153,6 +167,9 @@ public class CapService extends Service {
                 public void run() {
                     RtmpClient ds = setUpRtmp();
                     if(ds == null){
+                        clearMp();
+                        stopForeground(true);
+                        IsRunning = false;
                         return;
                     }
 

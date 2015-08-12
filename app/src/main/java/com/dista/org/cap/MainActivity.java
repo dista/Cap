@@ -145,11 +145,12 @@ public class MainActivity extends Activity {
 
 
         // setup test
-        setUpTest();
+        //setUpTest();
     }
 
     private RtmpClient rc = null;
 
+    /*
     private void setUpTest(){
         Button b = (Button)findViewById(R.id.test);
 
@@ -163,19 +164,6 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 if(rc == null){
-                    /*
-                    ByteArrayOutputStream ba = new ByteArrayOutputStream();
-                    HashMap<String, Object> tx = new HashMap<String, Object>();
-                    tx.put("caht", 2);
-                    try {
-                        Amf.write(ba, tx);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } catch (IllegalAccessException e) {
-                        e.printStackTrace();
-                    }
-                    */
-
                     rc = new RtmpClient();
                     try {
                         rc.connect(new InetSocketAddress("192.168.1.111", 1935), 30000, "app/stream");
@@ -207,6 +195,7 @@ public class MainActivity extends Activity {
             }
         });
     }
+    */
 
     @Override
     protected void onPause() {
@@ -284,6 +273,8 @@ public class MainActivity extends Activity {
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
+            Intent intent = new Intent(this, SettingActivity.class);
+            startActivity(intent);
             return true;
         }
 
