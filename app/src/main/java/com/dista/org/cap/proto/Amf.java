@@ -10,6 +10,8 @@ import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.AbstractMap;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -34,6 +36,23 @@ public class Amf {
         }
 
         Class<?> cls = obj.getClass();
+
+        if(cls.getSuperclass() == AbstractMap.class){
+            os.write(AMF0_OBJECT);
+
+            Map<String, Object> mp = (Map<String, Object>)obj;
+            for (String k: mp.keySet()
+                 ) {
+                Object ob = mp.get(k);
+                writeObjectKey(os, k);
+                write(os, ob);
+            }
+
+            writeObjectKey(os, "");
+            os.write(AMF0_OBJECT_END);
+
+            return;
+        }
 
         if(obj instanceof Number){
             Number nm = (Number)obj;

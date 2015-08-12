@@ -1,10 +1,12 @@
 package com.dista.org.cap.net;
 
+import android.media.MediaFormat;
 import android.util.Log;
 
 import com.dista.org.cap.exception.RtmpException;
 import com.dista.org.cap.media.AVMetaData;
 import com.dista.org.cap.media.AVPacket;
+import com.dista.org.cap.media.RtmpAVPacket;
 import com.dista.org.cap.proto.Amf;
 import com.dista.org.cap.proto.ConnectObj;
 import com.dista.org.cap.proto.ConnectResultObj1;
@@ -144,10 +146,6 @@ public class RtmpClient {
         }
     }
 
-    private void sendSetDataFrame(AVMetaData meta){
-
-    }
-
     private void handleResult() throws IOException, RtmpException, InstantiationException, IllegalAccessException {
         while(true) {
             RtmpMsg msg = decoder.decode();
@@ -219,6 +217,50 @@ public class RtmpClient {
         msg.getHeader().setMsgTypeId((short) 0x01);
 
         msg.setData(Util.IntToBytes(true, chunkSize, 4));
+
+        sendMsg(msg);
+    }
+
+    private void sendSetDataFrame(AVMetaData meta) throws IOException, IllegalAccessException {
+        RtmpMsg msg = new RtmpMsg();
+        msg.getHeader().setCsId(4);
+        msg.getHeader().setMsgTypeId((short) 0x012);
+        msg.getHeader().setMsgStreamId(streamId);
+
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        Amf.write(os, "@setDataFrame");
+        Amf.write(os, "onMetaData");
+
+        HashMap<String, Object> obj = new HashMap<String, Object>();
+        obj.put("encoder", meta.encoder);
+
+        if(meta.hasVideo){
+            obj.put("framerate", meta.videoFrameRate);
+            obj.put("width", meta.videoWidth);
+            obj.put("height", meta.videoHeight);
+            if(meta.videoMIMEType != null
+                    && meta.videoMIMEType.equals(MediaFormat.MIMETYPE_VIDEO_AVC)){
+                obj.put("videocodecid", "avc1");
+            }
+            obj.put("videodatarate", meta.videoDataRate);
+        } else if(meta.hasAudio){
+            obj.put("audiosamplerate", meta.audioSampleRate);
+            obj.put("audiochannels", meta.audioChannels);
+            obj.put("audiosamplerate", meta.audioSampleRate);
+
+            if(meta.audioMIMEType != null &&
+                    meta.audioMIMEType.equals(MediaFormat.MIMETYPE_AUDIO_AAC)){
+                obj.put("audiocodecid", "mp4a");
+            }
+
+            obj.put("audiodatarate", meta.audioDataRate);
+        }
+
+        Amf.write(os, obj);
+
+        final byte[] bytes = os.toByteArray();
+
+        msg.setData(bytes);
 
         sendMsg(msg);
     }
@@ -352,6 +394,22 @@ public class RtmpClient {
         sock.getOutputStream().write(toSend);
     }
 
-    public void sendAVPacket(AVPacket pkt){
+    public void sendAVPacket(RtmpAVPacket pkt) throws IOException {
+        RtmpMsg msg = new RtmpMsg();
+        msg.getHeader().setCsId(4);
+
+        // video
+        if(pkt.avType == 2) {
+            msg.getHeader().setMsgTypeId((short) 0x09);
+        } else {
+            msg.getHeader().setMsgTypeId((short) 0x08);
+        }
+
+        msg.getHeader().setMsgStreamId(streamId);
+        msg.getHeader().setCalTimestamp(pkt.dts);
+
+        msg.setData(pkt.data);
+
+        sendMsg(msg);
     }
 }

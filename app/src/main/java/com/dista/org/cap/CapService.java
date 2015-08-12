@@ -21,6 +21,7 @@ import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.DisplayMetrics;
@@ -29,10 +30,18 @@ import android.view.Display;
 import android.view.Surface;
 import android.view.SurfaceView;
 
+import com.dista.org.cap.exception.RtmpException;
+import com.dista.org.cap.media.AVMetaData;
+import com.dista.org.cap.media.Flv;
+import com.dista.org.cap.media.NalUtil;
+import com.dista.org.cap.media.RtmpAVPacket;
+import com.dista.org.cap.net.RtmpClient;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.Inet4Address;
+import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
@@ -85,6 +94,140 @@ public class CapService extends Service {
         return true;
     }
 
+    private void startCapByRtmp(){
+        if(mm == null){
+            mm = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+        }
+
+        mp = mm.getMediaProjection(code, data);
+
+        /*
+        vd = mp.createVirtualDisplay("cap", sv.getWidth(), sv.getHeight(), metrics.densityDpi,
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                sv.getHolder().getSurface(), null, null
+        );
+        */
+
+        Log.d("", "Start Capture screen");
+
+        if(setUpVideoCodec()){
+            sf = mediaCodec.createInputSurface();
+
+            vd2 = mp.createVirtualDisplay("Xcap", WIDTH, HEIGHT, DENSITY,
+                    DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                    sf, null, null
+            );
+
+            mediaCodec.start();
+
+            new Thread(new Runnable() {
+                private RtmpClient setUpRtmp(){
+                    try {
+                        RtmpClient rc = new RtmpClient();
+
+                        rc.connect(new InetSocketAddress("192.168.1.111", 1935), 30000, "app/stream");
+                        AVMetaData meta = new AVMetaData();
+                        meta.hasAudio = false;
+                        meta.hasVideo = true;
+                        meta.videoMIMEType = MediaFormat.MIMETYPE_VIDEO_AVC;
+                        meta.videoHeight = 480;
+                        meta.videoWidth = 640;
+                        meta.videoDataRate = 1000;
+                        meta.videoFrameRate = 25;
+                        meta.encoder = Build.MODEL + "(" + "Android"
+                                + Build.VERSION.RELEASE + ")" + "[Cap]";
+                        rc.publish(meta);
+
+                        return rc;
+                    } catch (RtmpException e) {
+                        e.printStackTrace();
+                    } catch (InstantiationException e) {
+                        e.printStackTrace();
+                    } catch (NoSuchFieldException e) {
+                        e.printStackTrace();
+                    }
+
+                    return null;
+                }
+
+                public void run() {
+                    RtmpClient ds = setUpRtmp();
+                    if(ds == null){
+                        return;
+                    }
+
+                    long startDts = -1;
+                    long timeline = 0;
+                    Flv flv = new Flv();
+
+                    while(true) {
+                        try {
+                            MediaCodec.BufferInfo bi = new MediaCodec.BufferInfo();
+                            int duration = 10000;
+                            int code = mediaCodec.dequeueOutputBuffer(bi, duration);
+
+                            if (code == MediaCodec.INFO_TRY_AGAIN_LATER) {
+                                //Log.d("", "Try later");
+                            } else if (code == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                                Log.d("", "Format changed");
+                            } else if (code < 0) {
+                                Log.d("", "dequeue error " + code);
+                                break;
+                            } else {
+                                ByteBuffer bf = mediaCodec.getOutputBuffer(code);
+
+                                byte[] outData = new byte[bi.size];
+                                bf.get(outData);
+
+                                int nalType = NalUtil.getNalType(outData);
+
+                                if(nalType == 7){
+                                    flv.feedNal(outData, 0, 0);
+                                    ds.sendAVPacket(flv.getAvcHeader());
+                                } else {
+                                    if(startDts == -1){
+                                        // XXX: make sure dts is less than pts
+                                        startDts = bi.presentationTimeUs - 100000;
+                                        timeline = System.currentTimeMillis() * 1000;
+                                    }
+
+                                    long dts = startDts + ((System.currentTimeMillis() * 1000)
+                                            - timeline);
+                                    long pts = bi.presentationTimeUs;
+
+                                    //Log.d("", "dts: " + dts + " pts: " + pts);
+
+                                    flv.feedNal(outData, dts, pts);
+                                    if(!flv.getPkts().isEmpty()){
+                                        RtmpAVPacket pkt = flv.getPkts().remove();
+                                        ds.sendAVPacket(pkt);
+                                    }
+                                }
+
+                                // generate av packet
+
+                                mediaCodec.releaseOutputBuffer(code, false);
+                            }
+                        } catch (Exception e){
+                            Log.d("", "Exception: " + e.toString());
+                            break;
+                        }
+                    }
+
+                    if(ds != null){
+                        ds.close();
+                        ds = null;
+                    }
+
+                    clearMp();
+                    stopForeground(true);
+                    IsRunning = false;
+                }
+            }).start();
+        }
+    }
+
+    @Deprecated
     private void startCap(){
         if(mm == null){
             mm = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
@@ -294,7 +437,7 @@ public class CapService extends Service {
         } else if(action == "Start" && !IsRunning){
             setNotification();
 
-            startCap();
+            startCapByRtmp();
             IsRunning = true;
         }
 

@@ -7,6 +7,8 @@ import android.graphics.Color;
 import android.graphics.Point;
 import android.hardware.display.VirtualDisplay;
 import android.media.MediaCodec;
+import android.media.MediaFormat;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.StrictMode;
 import android.util.DisplayMetrics;
@@ -28,6 +30,7 @@ import com.dista.org.cap.proto.Amf;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.HashMap;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -160,10 +163,33 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 if(rc == null){
+                    /*
+                    ByteArrayOutputStream ba = new ByteArrayOutputStream();
+                    HashMap<String, Object> tx = new HashMap<String, Object>();
+                    tx.put("caht", 2);
+                    try {
+                        Amf.write(ba, tx);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                    }
+                    */
+
                     rc = new RtmpClient();
                     try {
                         rc.connect(new InetSocketAddress("192.168.1.111", 1935), 30000, "app/stream");
-                        rc.publish(new AVMetaData());
+                        AVMetaData meta = new AVMetaData();
+                        meta.hasAudio = false;
+                        meta.hasVideo = true;
+                        meta.videoMIMEType = MediaFormat.MIMETYPE_VIDEO_AVC;
+                        meta.videoHeight = 480;
+                        meta.videoWidth = 640;
+                        meta.videoDataRate = 1000;
+                        meta.videoFrameRate = 25;
+                        meta.encoder = Build.MODEL + "(" + "Android"
+                                + Build.VERSION.RELEASE + ")" + "[Cap]";
+                        rc.publish(meta);
                     } catch (RtmpException e) {
                         e.printStackTrace();
                         Toast.makeText(ac, "rtmp失败", Toast.LENGTH_SHORT).show();
