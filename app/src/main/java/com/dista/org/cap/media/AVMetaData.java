@@ -6,7 +6,8 @@ package com.dista.org.cap.media;
 public class AVMetaData {
     public boolean hasVideo;
     public boolean hasAudio;
-    public int SoundFormat;
-    public int SoundRate;
+    public int soundFormat;
+    public int soundRate;
+    public String encoder;
     // TODO: more fields
 }

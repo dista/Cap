@@ -165,7 +165,13 @@ public class MainActivity extends Activity {
                         rc.connect(new InetSocketAddress("192.168.1.111", 1935), 30000, "app/stream");
                         rc.publish(new AVMetaData());
                     } catch (RtmpException e) {
-                        Log.d("", e.toString());
+                        e.printStackTrace();
+                        Toast.makeText(ac, "rtmp失败", Toast.LENGTH_SHORT).show();
+                    } catch (InstantiationException e) {
+                        e.printStackTrace();
+                        Toast.makeText(ac, "rtmp失败", Toast.LENGTH_SHORT).show();
+                    } catch (NoSuchFieldException e) {
+                        e.printStackTrace();
                         Toast.makeText(ac, "rtmp失败", Toast.LENGTH_SHORT).show();
                     }
                 } else {

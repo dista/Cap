@@ -133,7 +133,7 @@ public class Amf {
         return new String(str);
     }
 
-    public static Object readObject(ByteBuffer bf, Class<?> clazz) throws IllegalAccessException, InstantiationException, RtmpException, NoSuchFieldException {
+    public static Object readObject(ByteBuffer bf, Class<?> clazz) throws IllegalAccessException, InstantiationException, RtmpException {
         Object ret = clazz.newInstance();
 
         int type = bf.get();
@@ -154,19 +154,28 @@ public class Amf {
         while(true){
             String key = readObjectKey(bf);
 
-            Field f = clazz.getDeclaredField(key);
+            Field f = null;
+            try {
+                f = clazz.getDeclaredField(key);
+            } catch (NoSuchFieldException e) {
+                // no such field, ignore it.
+            }
 
             type = bf.get(bf.position());
 
             if(f == null){
                 skip(bf);
             } else {
+                f.setAccessible(true);
+
                 switch (type){
                     case AMF0_BOOLEAN:
-                        if(f.getType() != Boolean.TYPE){
+                        if(!f.getType().isPrimitive() && f.getType() != Boolean.TYPE){
                             throw new RtmpException("bad type");
                         }
-                        f.setBoolean(ret, readBoolean(bf));
+                        if(f.getType() == Boolean.class || f.getType() == boolean.class) {
+                            f.setBoolean(ret, readBoolean(bf));
+                        }
                         break;
                     case AMF0_ECMA_ARRAY:
                         f.set(ret, readObject(bf, f.getClass()));
@@ -179,21 +188,21 @@ public class Amf {
                     case AMF0_UNDEFINED:
                         break;
                     case AMF0_NUMBER:
-                        if(f.getType().getSuperclass() != Number.class){
+                        if(!f.getType().isPrimitive() && (f.getType().getSuperclass() != Number.class)){
                             throw new RtmpException("bad type");
                         }
 
                         Number n = (Number) readNumber(bf);
 
-                        if(f.getType() == Integer.class){
+                        if(f.getType() == Integer.class || f.getType() == int.class){
                             f.setInt(ret, n.intValue());
-                        } else if(f.getType() == Long.class){
+                        } else if(f.getType() == Long.class || f.getType() == long.class){
                             f.setLong(ret, n.longValue());
-                        } else if(f.getType() == Double.class){
+                        } else if(f.getType() == Double.class || f.getType() == double.class){
                             f.setDouble(ret, n.doubleValue());
-                        } else if(f.getType() == Short.class){
+                        } else if(f.getType() == Short.class || f.getType() == short.class){
                             f.setShort(ret, n.shortValue());
-                        } else if(f.getType() == Byte.class){
+                        } else if(f.getType() == Byte.class || f.getType() == byte.class){
                             f.setByte(ret, n.byteValue());
                         }
 
@@ -263,6 +272,9 @@ public class Amf {
                 break;
             case AMF0_ECMA_ARRAY:
                 skipObjectLike(bf);
+                break;
+            case AMF0_OBJECT_END:
+                bf.get();
                 break;
             default:
                 throw new RtmpException("skip, not supported");
