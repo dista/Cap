@@ -24,7 +24,7 @@ public class SettingActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        getWindow().setStatusBarColor(Color.rgb(104, 159, 56));
+        getWindow().setStatusBarColor(Color.rgb(70,181,255));
         setContentView(R.layout.activity_setting);
 
 

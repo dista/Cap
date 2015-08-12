@@ -133,13 +133,19 @@ public class CapService extends Service {
                         String path = sp.getString("path", "");
 
                         String[] vp = ipPort.split(":");
+                        String host = vp[0];
+                        int port = 1935;
 
-                        if(vp.length != 2){
+                        if(vp.length > 2){
                             rc.close();
                             return null;
                         }
 
-                        rc.connect(new InetSocketAddress(vp[0], Integer.parseInt(vp[1])), 30000, path);
+                        if(vp.length == 2){
+                            port = Integer.parseInt(vp[1]);
+                        }
+
+                        rc.connect(new InetSocketAddress(host, port), 30000, path);
                         AVMetaData meta = new AVMetaData();
                         meta.hasAudio = false;
                         meta.hasVideo = true;

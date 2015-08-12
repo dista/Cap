@@ -87,7 +87,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         timer = new Timer();
-        getWindow().setStatusBarColor(Color.rgb(104,159,56));
+        getWindow().setStatusBarColor(Color.rgb(70,181,255));
         setContentView(R.layout.activity_main);
 
         final MainActivity ac = this;

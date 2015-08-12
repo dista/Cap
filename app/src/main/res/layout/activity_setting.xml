@@ -59,6 +59,8 @@
         android:layout_height="wrap_content"
         android:text="保存"
         android:id="@+id/save"
+        android:backgroundTint="#46b5ff"
+        android:textColor="#fff"
         android:layout_centerVertical="true"
         android:layout_alignParentEnd="true" />
 
