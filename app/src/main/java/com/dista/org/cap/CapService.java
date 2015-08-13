@@ -71,6 +71,8 @@ public class CapService extends Service {
 
     public static boolean IsRunning = false;
     private static boolean Exit = false;
+    private boolean HAS_AUDIO = true;
+
     public CapService() {
     }
 
@@ -121,6 +123,21 @@ public class CapService extends Service {
         }
     }
 
+    private void recordOneAudio(){
+        int inputIdx = aEnc.dequeueInputBuffer(0);
+
+        if(inputIdx >= 0){
+            ByteBuffer b = aEnc.getInputBuffer(inputIdx);
+            b.clear();
+
+            int size = aRec.read(b, b.limit());
+            Log.d("", "");
+
+            long time = System.currentTimeMillis() * 1000;
+            aEnc.queueInputBuffer(inputIdx, 0, size, time, 0);
+        }
+    }
+
     private void recordAudioAsPossible(){
         int inputIdx = aEnc.dequeueInputBuffer(0);
 
@@ -143,11 +160,11 @@ public class CapService extends Service {
         int code = aEnc.dequeueOutputBuffer(bi, 0);
 
         if (code == MediaCodec.INFO_TRY_AGAIN_LATER) {
-            //Log.d("", "Try later");
+            //Log.i("", "Try later xxx");
         } else if (code == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-            Log.d("", "Format changed");
+            Log.i("", "Format changed");
         } else if (code < 0) {
-            Log.d("", "dequeue error " + code);
+            Log.i("", "dequeue error " + code);
             throw new AVException("DEQUE ERROR");
         } else {
             //Log.d("", String.format("%d: pts %d, offset %d, size %d" +
@@ -163,6 +180,8 @@ public class CapService extends Service {
             EncodedData d = new EncodedData();
             d.data = outData;
             d.pts = bi.presentationTimeUs;
+
+            //Log.i("", "pull one " + d.pts);
 
             return d;
         }
@@ -269,7 +288,7 @@ public class CapService extends Service {
                         meta.videoWidth = 640;
                         meta.videoDataRate = 1000;
                         meta.videoFrameRate = 25;
-                        meta.hasAudio = false;
+                        meta.hasAudio = HAS_AUDIO;
                         meta.audioMIMEType = MediaFormat.MIMETYPE_AUDIO_AAC;
                         meta.audioChannels = 2;
                         meta.audioDataRate = 64;
@@ -304,7 +323,10 @@ public class CapService extends Service {
                     long timeline = 0;
                     long lastVideoDts = 0;
                     boolean aacHeaderWritten = false;
-                    Flv flv = new Flv();
+                    final Flv flv = new Flv();
+
+                    boolean isAudioStarted = false;
+                    Thread ah = null;
 
                     while(!Exit) {
                         try {
@@ -320,7 +342,7 @@ public class CapService extends Service {
                                 Log.d("", "dequeue error " + code);
                                 break;
                             } else {
-                                ByteBuffer bf = mediaCodec.getOutputBuffer(code);
+                                final ByteBuffer bf = mediaCodec.getOutputBuffer(code);
 
                                 byte[] outData = new byte[bi.size];
                                 bf.get(outData);
@@ -330,6 +352,14 @@ public class CapService extends Service {
                                 if(nalType == 7){
                                     flv.feedNal(outData, 0, 0);
                                     ds.sendAVPacket(flv.getAvcHeader());
+
+                                    if(HAS_AUDIO){
+                                        // AAC LC
+                                        // 44100
+                                        // CPE = 2
+                                        ds.sendAVPacket(flv.buildAACHeaderExternalParams(2, 4, 2
+                                                , 0));
+                                    }
                                 } else {
                                     if(startDts == -1){
                                         // XXX: make sure dts is less than pts
@@ -343,10 +373,49 @@ public class CapService extends Service {
                                     long pts = bi.presentationTimeUs;
                                     lastVideoDts = dts;
 
+                                    if(!isAudioStarted){
+                                        isAudioStarted = true;
+
+                                        final long XStartPts = startPts;
+                                        final long XTimeline = timeline;
+                                        final long XLastVideoDts = lastVideoDts;
+                                        ah = new Thread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                while(!Exit){
+                                                    try {
+                                                        recordOneAudio();
+
+                                                        while(!Exit) {
+                                                            EncodedData encodedData = pullAudio();
+
+                                                            if(encodedData == null) {
+                                                                break;
+                                                            }
+
+                                                            if (XStartPts != -1 && encodedData.pts >= XTimeline) {
+                                                                // only feed aac after first video transmitted.
+                                                                // sync audio and video
+                                                                long audioDts = (encodedData.pts - XTimeline) + XStartPts;
+                                                                long audioPts = audioDts;
+
+                                                                flv.feedRawAAC(encodedData.data, audioDts, audioPts);
+                                                            }
+                                                        }
+                                                    }catch (Exception e){
+                                                        e.printStackTrace();
+                                                    }
+                                                }
+                                            }
+                                        });
+
+                                        ah.start();
+                                    }
+
                                     //Log.d("", "dts: " + dts + " pts: " + pts);
 
                                     flv.feedNal(outData, dts, pts);
-                                    if(!flv.getPkts().isEmpty()){
+                                    while (!flv.getPkts().isEmpty() && !Exit) {
                                         RtmpAVPacket pkt = flv.getPkts().remove();
                                         ds.sendAVPacket(pkt);
                                     }
@@ -407,6 +476,17 @@ public class CapService extends Service {
                     if(ds != null){
                         ds.close();
                         ds = null;
+                    }
+
+                    if(ah != null){
+                        Exit = true;
+                        try {
+                            ah.join();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+
+                        Exit = false;
                     }
 
                     clearMp();
