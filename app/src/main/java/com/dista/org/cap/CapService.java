@@ -17,9 +17,12 @@ import android.graphics.BitmapFactory;
 import android.graphics.Point;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
+import android.media.MediaRecorder;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.os.Build;
@@ -31,6 +34,7 @@ import android.view.Display;
 import android.view.Surface;
 import android.view.SurfaceView;
 
+import com.dista.org.cap.exception.AVException;
 import com.dista.org.cap.exception.RtmpException;
 import com.dista.org.cap.media.AVMetaData;
 import com.dista.org.cap.media.Flv;
@@ -55,6 +59,10 @@ public class CapService extends Service {
     private VirtualDisplay vd2;
     private Surface sf;
 
+    // audio
+    private AudioRecord aRec;
+    private MediaCodec aEnc;
+
     public static int WIDTH = 320;
     public static int HEIGHT = 240;
     public static int DENSITY = 1;
@@ -62,7 +70,104 @@ public class CapService extends Service {
     public static Intent data = null;
 
     public static boolean IsRunning = false;
+    private static boolean Exit = false;
     public CapService() {
+    }
+
+    private class EncodedData {
+        private byte[] data;
+        private long pts;
+        private int flag;
+    }
+
+    private boolean setUpAudioEncoder() throws IOException {
+        int sampleRate = 44100;
+        int channelConfig = AudioFormat.CHANNEL_IN_MONO;
+        int audioFormat = AudioFormat.ENCODING_PCM_16BIT;
+        aRec = new AudioRecord(MediaRecorder.AudioSource.MIC,
+                sampleRate, channelConfig, audioFormat,
+                AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat));
+
+        // encoder
+        // mono
+        MediaFormat fmt = new MediaFormat();
+        fmt.setString(MediaFormat.KEY_MIME, MediaFormat.MIMETYPE_AUDIO_AAC);
+        fmt.setInteger(MediaFormat.KEY_SAMPLE_RATE, 44100);
+        fmt.setInteger(MediaFormat.KEY_BIT_RATE, 64000);
+        fmt.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 2);
+        fmt.setInteger(MediaFormat.KEY_AAC_PROFILE,
+                MediaCodecInfo.CodecProfileLevel.AACObjectLC);
+
+        aEnc = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC);
+        aEnc.configure(fmt, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+
+        return true;
+    }
+
+    private void startAudioEncoder(){
+        aRec.startRecording();
+        aEnc.start();
+    }
+
+    private void clearAudioEncoder(){
+        if(aRec != null){
+            aRec.release();
+            aRec = null;
+        }
+
+        if(aEnc != null){
+            aEnc.release();
+            aEnc = null;
+        }
+    }
+
+    private void recordAudioAsPossible(){
+        int inputIdx = aEnc.dequeueInputBuffer(0);
+
+        while(inputIdx != MediaCodec.INFO_TRY_AGAIN_LATER){
+            ByteBuffer b = aEnc.getInputBuffer(inputIdx);
+            b.clear();
+
+            int size = aRec.read(b, b.limit());
+            Log.d("", "");
+
+            long time = System.currentTimeMillis() * 1000;
+            aEnc.queueInputBuffer(inputIdx, 0, size, time, 0);
+
+            inputIdx = aEnc.dequeueInputBuffer(0);
+        }
+    }
+
+    private EncodedData pullAudio() throws AVException {
+        MediaCodec.BufferInfo bi = new MediaCodec.BufferInfo();
+        int code = aEnc.dequeueOutputBuffer(bi, 0);
+
+        if (code == MediaCodec.INFO_TRY_AGAIN_LATER) {
+            //Log.d("", "Try later");
+        } else if (code == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+            Log.d("", "Format changed");
+        } else if (code < 0) {
+            Log.d("", "dequeue error " + code);
+            throw new AVException("DEQUE ERROR");
+        } else {
+            //Log.d("", String.format("%d: pts %d, offset %d, size %d" +
+            //        "", System.currentTimeMillis(), bi.presentationTimeUs, bi.offset, bi.size));
+
+            ByteBuffer bf = aEnc.getOutputBuffer(code);
+
+            byte[] outData = new byte[bi.size];
+            bf.get(outData);
+
+            aEnc.releaseOutputBuffer(code, false);
+
+            EncodedData d = new EncodedData();
+            d.data = outData;
+            d.pts = bi.presentationTimeUs;
+
+            return d;
+        }
+
+        return null;
     }
 
     private boolean setUpVideoCodec(){
@@ -98,6 +203,7 @@ public class CapService extends Service {
     }
 
     private void startCapByRtmp(){
+        Exit = false;
         if(mm == null){
             mm = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
         }
@@ -113,7 +219,16 @@ public class CapService extends Service {
 
         Log.d("", "Start Capture screen");
 
-        if(setUpVideoCodec()){
+        try {
+            setUpAudioEncoder();
+        } catch (Exception e) {
+            e.printStackTrace();
+            clearMp();
+            IsRunning = false;
+            return;
+        }
+
+        if (setUpVideoCodec()) {
             sf = mediaCodec.createInputSurface();
 
             vd2 = mp.createVirtualDisplay("Xcap", WIDTH, HEIGHT, DENSITY,
@@ -122,6 +237,7 @@ public class CapService extends Service {
             );
 
             mediaCodec.start();
+            startAudioEncoder();
 
             new Thread(new Runnable() {
                 private RtmpClient setUpRtmp(){
@@ -147,13 +263,17 @@ public class CapService extends Service {
 
                         rc.connect(new InetSocketAddress(host, port), 30000, path);
                         AVMetaData meta = new AVMetaData();
-                        meta.hasAudio = false;
                         meta.hasVideo = true;
                         meta.videoMIMEType = MediaFormat.MIMETYPE_VIDEO_AVC;
                         meta.videoHeight = 480;
                         meta.videoWidth = 640;
                         meta.videoDataRate = 1000;
                         meta.videoFrameRate = 25;
+                        meta.hasAudio = false;
+                        meta.audioMIMEType = MediaFormat.MIMETYPE_AUDIO_AAC;
+                        meta.audioChannels = 2;
+                        meta.audioDataRate = 64;
+                        meta.audioSampleRate = 44100;
                         meta.encoder = Build.MODEL + "(" + "Android"
                                 + Build.VERSION.RELEASE + ")" + "[Cap]";
                         rc.publish(meta);
@@ -180,13 +300,16 @@ public class CapService extends Service {
                     }
 
                     long startDts = -1;
+                    long startPts = -1;
                     long timeline = 0;
+                    long lastVideoDts = 0;
+                    boolean aacHeaderWritten = false;
                     Flv flv = new Flv();
 
-                    while(true) {
+                    while(!Exit) {
                         try {
                             MediaCodec.BufferInfo bi = new MediaCodec.BufferInfo();
-                            int duration = 10000;
+                            int duration = 1000;
                             int code = mediaCodec.dequeueOutputBuffer(bi, duration);
 
                             if (code == MediaCodec.INFO_TRY_AGAIN_LATER) {
@@ -210,13 +333,15 @@ public class CapService extends Service {
                                 } else {
                                     if(startDts == -1){
                                         // XXX: make sure dts is less than pts
-                                        startDts = bi.presentationTimeUs - 100000;
+                                        startPts = bi.presentationTimeUs;
+                                        startDts = startPts - 10000;
                                         timeline = System.currentTimeMillis() * 1000;
                                     }
 
                                     long dts = startDts + ((System.currentTimeMillis() * 1000)
                                             - timeline);
                                     long pts = bi.presentationTimeUs;
+                                    lastVideoDts = dts;
 
                                     //Log.d("", "dts: " + dts + " pts: " + pts);
 
@@ -231,8 +356,50 @@ public class CapService extends Service {
 
                                 mediaCodec.releaseOutputBuffer(code, false);
                             }
+
+                            /*
+                            recordAudioAsPossible();
+                            while(true){
+                                final EncodedData encodedData = pullAudio();
+                                if(encodedData == null){
+                                    break;
+                                }
+
+                                if(startPts != -1 && encodedData.pts >= timeline){
+                                    // only feed aac after first video transmitted.
+                                    // sync audio and video
+                                    long audioDts = (encodedData.pts - timeline) + startPts;
+                                    long audioPts = audioDts;
+
+                                    flv.feedRawAAC(encodedData.data, audioDts, audioPts);
+
+                                    if(!aacHeaderWritten){
+                                        aacHeaderWritten = true;
+
+                                        // AAC LC
+                                        // 44100
+                                        // CPE = 2
+                                        ds.sendAVPacket(flv.buildAACHeaderExternalParams(2, 4, 2
+                                                , audioDts));
+                                    }
+
+                                    if((lastVideoDts + 10000) < audioDts){
+                                        Log.d("", "break");
+                                        break;
+                                    }
+
+                                    while(!flv.getPkts().isEmpty()){
+                                        RtmpAVPacket pkt = flv.getPkts().remove();
+                                        ds.sendAVPacket(pkt);
+                                    }
+
+                                    //Log.i("", "Audio dts: " + dts + " startPts: " + startPts
+                                    //+ " len: " + encodedData.data.length);
+                                }
+                            }
+                            */
                         } catch (Exception e){
-                            Log.d("", "Exception: " + e.toString());
+                            e.printStackTrace();
                             break;
                         }
                     }
@@ -245,6 +412,7 @@ public class CapService extends Service {
                     clearMp();
                     stopForeground(true);
                     IsRunning = false;
+                    Exit = false;
                 }
             }).start();
         }
@@ -252,6 +420,7 @@ public class CapService extends Service {
 
     @Deprecated
     private void startCap(){
+        Exit = false;
         if(mm == null){
             mm = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
         }
@@ -300,7 +469,7 @@ public class CapService extends Service {
                         return;
                     }
 
-                    while(true) {
+                    while(!Exit) {
                         try {
                             MediaCodec.BufferInfo bi = new MediaCodec.BufferInfo();
                             int duration = 10000;
@@ -381,6 +550,7 @@ public class CapService extends Service {
                     clearMp();
                     stopForeground(true);
                     IsRunning = false;
+                    Exit = false;
                 }
             }).start();
         }
@@ -392,6 +562,7 @@ public class CapService extends Service {
             mp = null;
         }
         clearVideoCodec();
+        clearAudioEncoder();
     }
 
     @Override
@@ -455,13 +626,13 @@ public class CapService extends Service {
 
         String action = intent.getAction();
 
-        if(action == "Stop" && IsRunning){
-            clearMp();
+        if(action == "Stop"/* && IsRunning*/){
+            Exit = true;
         } else if(action == "Start" && !IsRunning){
             setNotification();
 
-            startCapByRtmp();
             IsRunning = true;
+            startCapByRtmp();
         }
 
         return START_STICKY;

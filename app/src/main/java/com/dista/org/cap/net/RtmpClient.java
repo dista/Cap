@@ -243,7 +243,9 @@ public class RtmpClient {
                 obj.put("videocodecid", "avc1");
             }
             obj.put("videodatarate", meta.videoDataRate);
-        } else if(meta.hasAudio){
+        }
+
+        if(meta.hasAudio){
             obj.put("audiosamplerate", meta.audioSampleRate);
             obj.put("audiochannels", meta.audioChannels);
             obj.put("audiosamplerate", meta.audioSampleRate);
@@ -396,13 +398,14 @@ public class RtmpClient {
 
     public void sendAVPacket(RtmpAVPacket pkt) throws IOException {
         RtmpMsg msg = new RtmpMsg();
-        msg.getHeader().setCsId(4);
 
         // video
         if(pkt.avType == 2) {
             msg.getHeader().setMsgTypeId((short) 0x09);
+            msg.getHeader().setCsId(4);
         } else {
             msg.getHeader().setMsgTypeId((short) 0x08);
+            msg.getHeader().setCsId(5);
         }
 
         msg.getHeader().setMsgStreamId(streamId);
