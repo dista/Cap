@@ -96,7 +96,7 @@ public class CapService extends Service {
         fmt.setString(MediaFormat.KEY_MIME, MediaFormat.MIMETYPE_AUDIO_AAC);
         fmt.setInteger(MediaFormat.KEY_SAMPLE_RATE, 44100);
         fmt.setInteger(MediaFormat.KEY_BIT_RATE, 64000);
-        fmt.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 2);
+        fmt.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
         fmt.setInteger(MediaFormat.KEY_AAC_PROFILE,
                 MediaCodecInfo.CodecProfileLevel.AACObjectLC);
 
@@ -131,7 +131,7 @@ public class CapService extends Service {
             b.clear();
 
             int size = aRec.read(b, b.limit());
-            Log.d("", "");
+            //Log.i("", "size: " + size);
 
             long time = System.currentTimeMillis() * 1000;
             aEnc.queueInputBuffer(inputIdx, 0, size, time, 0);
@@ -182,6 +182,12 @@ public class CapService extends Service {
             d.pts = bi.presentationTimeUs;
 
             //Log.i("", "pull one " + d.pts);
+
+            // may FIXME: we get first frame as length = 2 and pts = 0,
+            // but I do not know what it is now. Simply skip it first.
+            if(d.data.length < 10 && d.pts == 0){
+                return null;
+            }
 
             return d;
         }
@@ -290,7 +296,7 @@ public class CapService extends Service {
                         meta.videoFrameRate = 25;
                         meta.hasAudio = HAS_AUDIO;
                         meta.audioMIMEType = MediaFormat.MIMETYPE_AUDIO_AAC;
-                        meta.audioChannels = 2;
+                        meta.audioChannels = 1;
                         meta.audioDataRate = 64;
                         meta.audioSampleRate = 44100;
                         meta.encoder = Build.MODEL + "(" + "Android"
@@ -322,7 +328,7 @@ public class CapService extends Service {
                     long startPts = -1;
                     long timeline = 0;
                     long lastVideoDts = 0;
-                    boolean aacHeaderWritten = false;
+
                     final Flv flv = new Flv();
 
                     boolean isAudioStarted = false;
@@ -353,13 +359,15 @@ public class CapService extends Service {
                                     flv.feedNal(outData, 0, 0);
                                     ds.sendAVPacket(flv.getAvcHeader());
 
+                                    /*
                                     if(HAS_AUDIO){
                                         // AAC LC
                                         // 44100
-                                        // CPE = 2
-                                        ds.sendAVPacket(flv.buildAACHeaderExternalParams(2, 4, 2
+                                        // CPE = 1
+                                        ds.sendAVPacket(flv.buildAACHeaderExternalParams(2, 4, 1
                                                 , 0));
                                     }
+                                    */
                                 } else {
                                     if(startDts == -1){
                                         // XXX: make sure dts is less than pts
@@ -379,9 +387,12 @@ public class CapService extends Service {
                                         final long XStartPts = startPts;
                                         final long XTimeline = timeline;
                                         final long XLastVideoDts = lastVideoDts;
+
                                         ah = new Thread(new Runnable() {
                                             @Override
                                             public void run() {
+                                                boolean aacHeaderWritten = false;
+                                                long lastADts = -1;
                                                 while(!Exit){
                                                     try {
                                                         recordOneAudio();
@@ -393,13 +404,36 @@ public class CapService extends Service {
                                                                 break;
                                                             }
 
+                                                            //Log.i("", "pts is: " + encodedData.pts
+                                                            //    + " size: " + encodedData.data.length);
+
                                                             if (XStartPts != -1 && encodedData.pts >= XTimeline) {
                                                                 // only feed aac after first video transmitted.
                                                                 // sync audio and video
                                                                 long audioDts = (encodedData.pts - XTimeline) + XStartPts;
                                                                 long audioPts = audioDts;
 
-                                                                flv.feedRawAAC(encodedData.data, audioDts, audioPts);
+                                                                if(!aacHeaderWritten){
+                                                                    // AAC LC
+                                                                    // 44100
+                                                                    // CPE = 1
+                                                                    RtmpAVPacket aacH = flv.buildAACHeaderExternalParams(2, 4, 1
+                                                                            , audioDts);
+
+                                                                    flv.getPkts().add(aacH);
+
+                                                                    aacHeaderWritten = true;
+                                                                }
+                                                                Log.i("", "pts is: " + audioDts
+                                                                    + " size: " + encodedData.data.length);
+
+                                                                // MAY FIXME: audioDts may less than lastADts
+                                                                if(lastADts != -1 && audioDts > lastADts) {
+                                                                    flv.feedRawAAC(encodedData.data, audioDts, audioPts);
+                                                                    lastADts = audioDts;
+                                                                } else if(lastADts == -1){
+                                                                    lastADts = audioDts;
+                                                                }
                                                             }
                                                         }
                                                     }catch (Exception e){

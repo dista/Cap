@@ -77,7 +77,7 @@ public class Flv {
         pkt.avType = 1;
         pkt.data = os.toByteArray();
         pkt.dts = timestamp / 1000;
-        pkt.pts = pkt.dts;
+        pkt.pts = timestamp / 1000;
 
         return pkt;
     }
