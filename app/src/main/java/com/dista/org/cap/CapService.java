@@ -267,6 +267,7 @@ public class CapService extends Service {
             startAudioEncoder();
 
             final long initTime = System.currentTimeMillis() * 1000;
+            final long BASE_TIME = 100000;
             final Flv flv = new Flv();
 
             final Thread ah = new Thread(new Runnable() {
@@ -289,7 +290,7 @@ public class CapService extends Service {
                                 //    + " size: " + encodedData.data.length);
                                     // only feed aac after first video transmitted.
                                     // sync audio and video
-                                long audioDts = encodedData.pts - initTime;
+                                long audioDts = encodedData.pts - initTime + BASE_TIME;
                                 long audioPts = audioDts;
 
                                 if(!aacHeaderWritten){
@@ -422,14 +423,14 @@ public class CapService extends Service {
                                     */
                                 } else {
                                     long timeline = System.currentTimeMillis() * 1000;
-                                    long dts = timeline - initTime;
+                                    long dts = timeline - initTime + BASE_TIME - 10000;
                                     if(startPts == -1){
                                         // XXX: make sure dts is less than pts
                                         startPts = bi.presentationTimeUs;
                                         startDts = dts;
                                     }
 
-                                    long pts = bi.presentationTimeUs - startPts + startDts + 10000;
+                                    long pts = bi.presentationTimeUs - startPts + startDts + BASE_TIME;
 
                                     //Log.d("", "dts: " + dts + " pts: " + pts);
 
