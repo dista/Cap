@@ -2,6 +2,8 @@
  *  author dista@qq.com
  *  2015
  *
+ *  TODO: this is ugly, refactor it from service
+ *
  */
 
 package com.dista.org.cap;
@@ -264,6 +266,63 @@ public class CapService extends Service {
             mediaCodec.start();
             startAudioEncoder();
 
+            final long initTime = System.currentTimeMillis() * 1000;
+            final Flv flv = new Flv();
+
+            final Thread ah = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    boolean aacHeaderWritten = false;
+                    long lastADts = -1;
+                    while(!Exit){
+                        try {
+                            recordOneAudio();
+
+                            while(!Exit) {
+                                EncodedData encodedData = pullAudio();
+
+                                if(encodedData == null) {
+                                    break;
+                                }
+
+                                //Log.i("", "pts is: " + encodedData.pts
+                                //    + " size: " + encodedData.data.length);
+                                    // only feed aac after first video transmitted.
+                                    // sync audio and video
+                                long audioDts = encodedData.pts - initTime;
+                                long audioPts = audioDts;
+
+                                if(!aacHeaderWritten){
+                                    // AAC LC
+                                    // 44100
+                                    // CPE = 1
+                                    RtmpAVPacket aacH = flv.buildAACHeaderExternalParams(2, 4, 1
+                                            , audioDts);
+
+                                    flv.getPkts().add(aacH);
+
+                                    aacHeaderWritten = true;
+                                }
+                                //Log.i("", "pts is: " + audioDts
+                                //    + " size: " + encodedData.data.length);
+
+                                // MAY FIXME: audioDts may less than lastADts
+                                if(lastADts != -1 && audioDts > lastADts) {
+                                    flv.feedRawAAC(encodedData.data, audioDts, audioPts);
+                                    lastADts = audioDts;
+                                } else if(lastADts == -1){
+                                    lastADts = audioDts;
+                                }
+                            }
+                        }catch (Exception e){
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            });
+
+            ah.start();
+
             new Thread(new Runnable() {
                 private RtmpClient setUpRtmp(){
                     try {
@@ -324,15 +383,8 @@ public class CapService extends Service {
                         return;
                     }
 
-                    long startDts = -1;
                     long startPts = -1;
-                    long timeline = 0;
-                    long lastVideoDts = 0;
-
-                    final Flv flv = new Flv();
-
-                    boolean isAudioStarted = false;
-                    Thread ah = null;
+                    long startDts = -1;
 
                     while(!Exit) {
                         try {
@@ -369,82 +421,15 @@ public class CapService extends Service {
                                     }
                                     */
                                 } else {
-                                    if(startDts == -1){
+                                    long timeline = System.currentTimeMillis() * 1000;
+                                    long dts = timeline - initTime;
+                                    if(startPts == -1){
                                         // XXX: make sure dts is less than pts
                                         startPts = bi.presentationTimeUs;
-                                        startDts = startPts - 10000;
-                                        timeline = System.currentTimeMillis() * 1000;
+                                        startDts = dts;
                                     }
 
-                                    long dts = startDts + ((System.currentTimeMillis() * 1000)
-                                            - timeline);
-                                    long pts = bi.presentationTimeUs;
-                                    lastVideoDts = dts;
-
-                                    if(!isAudioStarted){
-                                        isAudioStarted = true;
-
-                                        final long XStartPts = startPts;
-                                        final long XTimeline = timeline;
-                                        final long XLastVideoDts = lastVideoDts;
-
-                                        ah = new Thread(new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                boolean aacHeaderWritten = false;
-                                                long lastADts = -1;
-                                                while(!Exit){
-                                                    try {
-                                                        recordOneAudio();
-
-                                                        while(!Exit) {
-                                                            EncodedData encodedData = pullAudio();
-
-                                                            if(encodedData == null) {
-                                                                break;
-                                                            }
-
-                                                            //Log.i("", "pts is: " + encodedData.pts
-                                                            //    + " size: " + encodedData.data.length);
-
-                                                            if (XStartPts != -1 && encodedData.pts >= XTimeline) {
-                                                                // only feed aac after first video transmitted.
-                                                                // sync audio and video
-                                                                long audioDts = (encodedData.pts - XTimeline) + XStartPts;
-                                                                long audioPts = audioDts;
-
-                                                                if(!aacHeaderWritten){
-                                                                    // AAC LC
-                                                                    // 44100
-                                                                    // CPE = 1
-                                                                    RtmpAVPacket aacH = flv.buildAACHeaderExternalParams(2, 4, 1
-                                                                            , audioDts);
-
-                                                                    flv.getPkts().add(aacH);
-
-                                                                    aacHeaderWritten = true;
-                                                                }
-                                                                Log.i("", "pts is: " + audioDts
-                                                                    + " size: " + encodedData.data.length);
-
-                                                                // MAY FIXME: audioDts may less than lastADts
-                                                                if(lastADts != -1 && audioDts > lastADts) {
-                                                                    flv.feedRawAAC(encodedData.data, audioDts, audioPts);
-                                                                    lastADts = audioDts;
-                                                                } else if(lastADts == -1){
-                                                                    lastADts = audioDts;
-                                                                }
-                                                            }
-                                                        }
-                                                    }catch (Exception e){
-                                                        e.printStackTrace();
-                                                    }
-                                                }
-                                            }
-                                        });
-
-                                        ah.start();
-                                    }
+                                    long pts = bi.presentationTimeUs - startPts + startDts + 10000;
 
                                     //Log.d("", "dts: " + dts + " pts: " + pts);
 
@@ -459,48 +444,6 @@ public class CapService extends Service {
 
                                 mediaCodec.releaseOutputBuffer(code, false);
                             }
-
-                            /*
-                            recordAudioAsPossible();
-                            while(true){
-                                final EncodedData encodedData = pullAudio();
-                                if(encodedData == null){
-                                    break;
-                                }
-
-                                if(startPts != -1 && encodedData.pts >= timeline){
-                                    // only feed aac after first video transmitted.
-                                    // sync audio and video
-                                    long audioDts = (encodedData.pts - timeline) + startPts;
-                                    long audioPts = audioDts;
-
-                                    flv.feedRawAAC(encodedData.data, audioDts, audioPts);
-
-                                    if(!aacHeaderWritten){
-                                        aacHeaderWritten = true;
-
-                                        // AAC LC
-                                        // 44100
-                                        // CPE = 2
-                                        ds.sendAVPacket(flv.buildAACHeaderExternalParams(2, 4, 2
-                                                , audioDts));
-                                    }
-
-                                    if((lastVideoDts + 10000) < audioDts){
-                                        Log.d("", "break");
-                                        break;
-                                    }
-
-                                    while(!flv.getPkts().isEmpty()){
-                                        RtmpAVPacket pkt = flv.getPkts().remove();
-                                        ds.sendAVPacket(pkt);
-                                    }
-
-                                    //Log.i("", "Audio dts: " + dts + " startPts: " + startPts
-                                    //+ " len: " + encodedData.data.length);
-                                }
-                            }
-                            */
                         } catch (Exception e){
                             e.printStackTrace();
                             break;
