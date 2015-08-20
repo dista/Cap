@@ -9,6 +9,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -19,6 +20,7 @@ public class SettingActivity extends Activity {
     private EditText pathView;
     private EditText bitrateView;
     private Button saveButton;
+    private CheckBox cb;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,6 +34,7 @@ public class SettingActivity extends Activity {
         String ipPort = sp.getString("ip_port", "");
         final String path = sp.getString("path", "");
         int bitrate = sp.getInt("bitrate", 1000);
+        boolean ignoreAudio = sp.getBoolean("ignore_audio", false);
 
         ipPortView = (EditText)findViewById(R.id.ip_port);
         ipPortView.setText(ipPort);
@@ -41,6 +44,9 @@ public class SettingActivity extends Activity {
 
         bitrateView = (EditText)findViewById(R.id.bitrate);
         bitrateView.setText(Integer.toString(bitrate));
+
+        cb = (CheckBox)findViewById(R.id.ignore_audio);
+        cb.setChecked(ignoreAudio);
 
         final Activity self = this;
 
@@ -52,6 +58,7 @@ public class SettingActivity extends Activity {
                 edit.putString("ip_port", String.valueOf(ipPortView.getText()));
                 edit.putString("path", String.valueOf(pathView.getText()));
                 edit.putInt("bitrate", Integer.valueOf(String.valueOf(bitrateView.getText())));
+                edit.putBoolean("ignore_audio", cb.isChecked());
                 edit.commit();
 
                 Toast.makeText(self, "保存成功", Toast.LENGTH_SHORT).show();

@@ -49,6 +49,7 @@ public class Recorder {
     // audio
     private AudioRecord aRec;
     private MediaCodec aEnc;
+    private boolean ignoreAudio;
 
     // streaming
     private String ip;
@@ -70,12 +71,14 @@ public class Recorder {
     }
 
     public Recorder(int width, int height, int density,
-                    int videoBitrate, StateChange st
+                    int videoBitrate, boolean ignoreAudio,
+                    StateChange st
                     ){
         this.width = width;
         this.height = height;
         this.density = density;
         this.videoBitrate = videoBitrate;
+        this.ignoreAudio = ignoreAudio;
         this.st = st;
         connectingServer = false;
     }
@@ -193,72 +196,79 @@ public class Recorder {
 
     public void start() throws IOException {
         configureVideoEncoder();
-        configureAudioEncoder();
+
+        if(!ignoreAudio) {
+            configureAudioEncoder();
+        }
 
         // start video
         mediaCodec.start();
 
-        // start audio
-        aRec.startRecording();
-        aEnc.start();
+        if(!ignoreAudio) {
+            // start audio
+            aRec.startRecording();
+            aEnc.start();
+        }
 
         final long initTime = System.currentTimeMillis() * 1000;
         final long BASE_TIME = 100000;
         final Flv flv = new Flv();
 
-        audioThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                boolean aacHeaderWritten = false;
-                long lastADts = -1;
-                while(!exit){
-                    try {
-                        recordOneAudio();
+        if(!ignoreAudio) {
+            audioThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    boolean aacHeaderWritten = false;
+                    long lastADts = -1;
+                    while (!exit) {
+                        try {
+                            recordOneAudio();
 
-                        while(!exit) {
-                            EncodedData encodedData = pullAudio();
+                            while (!exit) {
+                                EncodedData encodedData = pullAudio();
 
-                            if(encodedData == null) {
-                                break;
+                                if (encodedData == null) {
+                                    break;
+                                }
+
+                                //Log.i("", "pts is: " + encodedData.pts
+                                //    + " size: " + encodedData.data.length);
+                                // only feed aac after first video transmitted.
+                                // sync audio and video
+                                long audioDts = encodedData.pts - initTime + BASE_TIME;
+                                long audioPts = audioDts;
+
+                                if (!aacHeaderWritten) {
+                                    // AAC LC
+                                    // 44100
+                                    // CPE = 1
+                                    RtmpAVPacket aacH = flv.buildAACHeaderExternalParams(2, 4, 1
+                                            , audioDts);
+
+                                    flv.getPkts().add(aacH);
+
+                                    aacHeaderWritten = true;
+                                }
+                                //Log.i("", "pts is: " + audioDts
+                                //    + " size: " + encodedData.data.length);
+
+                                // MAY FIXME: audioDts may less than lastADts
+                                if (lastADts != -1 && audioDts > lastADts) {
+                                    flv.feedRawAAC(encodedData.data, audioDts, audioPts);
+                                    lastADts = audioDts;
+                                } else if (lastADts == -1) {
+                                    lastADts = audioDts;
+                                }
                             }
-
-                            //Log.i("", "pts is: " + encodedData.pts
-                            //    + " size: " + encodedData.data.length);
-                            // only feed aac after first video transmitted.
-                            // sync audio and video
-                            long audioDts = encodedData.pts - initTime + BASE_TIME;
-                            long audioPts = audioDts;
-
-                            if(!aacHeaderWritten){
-                                // AAC LC
-                                // 44100
-                                // CPE = 1
-                                RtmpAVPacket aacH = flv.buildAACHeaderExternalParams(2, 4, 1
-                                        , audioDts);
-
-                                flv.getPkts().add(aacH);
-
-                                aacHeaderWritten = true;
-                            }
-                            //Log.i("", "pts is: " + audioDts
-                            //    + " size: " + encodedData.data.length);
-
-                            // MAY FIXME: audioDts may less than lastADts
-                            if(lastADts != -1 && audioDts > lastADts) {
-                                flv.feedRawAAC(encodedData.data, audioDts, audioPts);
-                                lastADts = audioDts;
-                            } else if(lastADts == -1){
-                                lastADts = audioDts;
-                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
-                    }catch (Exception e){
-                        e.printStackTrace();
                     }
                 }
-            }
-        });
+            });
 
-        audioThread.start();
+            audioThread.start();
+        }
 
         videoThread = new Thread(new Runnable() {
             private RtmpClient setUpRtmp(){
@@ -277,7 +287,7 @@ public class Recorder {
                     meta.videoWidth = height;
                     meta.videoDataRate = videoBitrate;
                     meta.videoFrameRate = 25;
-                    meta.hasAudio = true;
+                    meta.hasAudio = !ignoreAudio;
                     meta.audioMIMEType = MediaFormat.MIMETYPE_AUDIO_AAC;
                     meta.audioChannels = 1;
                     meta.audioDataRate = 64;

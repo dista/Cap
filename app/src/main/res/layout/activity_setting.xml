@@ -49,7 +49,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textAppearance="?android:attr/textAppearanceSmall"
-        android:text="码率"
+        android:text="视频码率"
         android:id="@+id/textView3"
         android:layout_below="@+id/path"
         android:layout_alignParentStart="true" />
@@ -61,7 +61,7 @@
         android:id="@+id/save"
         android:backgroundTint="#46b5ff"
         android:textColor="#fff"
-        android:layout_centerVertical="true"
+        android:layout_below="@+id/ignore_audio"
         android:layout_alignParentEnd="true" />
 
     <EditText
@@ -83,5 +83,23 @@
         android:layout_toEndOf="@+id/bitrate"
         android:layout_alignBottom="@+id/bitrate"
         android:layout_alignTop="@+id/bitrate" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:text="音频"
+        android:id="@+id/textView5"
+        android:layout_below="@+id/bitrate"
+        android:layout_alignParentStart="true" />
+
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="忽略音频"
+        android:id="@+id/ignore_audio"
+        android:layout_below="@+id/textView5"
+        android:layout_alignParentStart="true"
+        android:checked="false" />
 
 </RelativeLayout>
