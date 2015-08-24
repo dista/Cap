@@ -52,6 +52,7 @@ public class CaptureService extends Service implements Recorder.StateChange{
             String ipPort = sp.getString("ip_port", "");
             String path = sp.getString("path", "");
             boolean ignoreAudio = sp.getBoolean("ignore_audio", false);
+            boolean landscape = sp.getBoolean("landscape", false);
 
             String[] vp = ipPort.split(":");
             String host = vp[0];
@@ -67,7 +68,15 @@ public class CaptureService extends Service implements Recorder.StateChange{
 
             MediaProjectionManager mm = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
-            recorder = new Recorder(WIDTH, HEIGHT, DENSITY, sp.getInt("bitrate", 1000) * 1000,
+            int width = WIDTH;
+            int height = HEIGHT;
+
+            if(landscape){
+                width = HEIGHT;
+                height = WIDTH;
+            }
+
+            recorder = new Recorder(width, height, DENSITY, sp.getInt("bitrate", 1000) * 1000,
                     ignoreAudio, this);
             recorder.setMediaProjectionManagerValues(mm, code, data);
             recorder.setRtmpParams(host, port, path);

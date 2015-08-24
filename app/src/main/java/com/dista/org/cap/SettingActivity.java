@@ -1,9 +1,11 @@
 package com.dista.org.cap;
 
+import android.app.ActionBar;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -21,6 +23,7 @@ public class SettingActivity extends Activity {
     private EditText bitrateView;
     private Button saveButton;
     private CheckBox cb;
+    private CheckBox landscape;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,12 +32,12 @@ public class SettingActivity extends Activity {
         getWindow().setStatusBarColor(Color.rgb(70,181,255));
         setContentView(R.layout.activity_setting);
 
-
         final SharedPreferences sp = getSharedPreferences("Cap", 0);
         String ipPort = sp.getString("ip_port", "");
         final String path = sp.getString("path", "");
         int bitrate = sp.getInt("bitrate", 1000);
         boolean ignoreAudio = sp.getBoolean("ignore_audio", false);
+        boolean isLandscape = sp.getBoolean("landscape", false);
 
         ipPortView = (EditText)findViewById(R.id.ip_port);
         ipPortView.setText(ipPort);
@@ -48,6 +51,9 @@ public class SettingActivity extends Activity {
         cb = (CheckBox)findViewById(R.id.ignore_audio);
         cb.setChecked(ignoreAudio);
 
+        landscape = (CheckBox)findViewById(R.id.landscape);
+        landscape.setChecked(isLandscape);
+
         final Activity self = this;
 
         saveButton = (Button)findViewById(R.id.save);
@@ -59,6 +65,7 @@ public class SettingActivity extends Activity {
                 edit.putString("path", String.valueOf(pathView.getText()));
                 edit.putInt("bitrate", Integer.valueOf(String.valueOf(bitrateView.getText())));
                 edit.putBoolean("ignore_audio", cb.isChecked());
+                edit.putBoolean("landscape", landscape.isChecked());
                 edit.commit();
 
                 Toast.makeText(self, "保存成功", Toast.LENGTH_SHORT).show();

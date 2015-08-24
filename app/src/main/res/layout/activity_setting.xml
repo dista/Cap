@@ -55,14 +55,14 @@
         android:layout_alignParentStart="true" />
 
     <Button
-        android:layout_width="wrap_content"
+        android:layout_width="150dp"
         android:layout_height="wrap_content"
         android:text="保存"
         android:id="@+id/save"
         android:backgroundTint="#46b5ff"
         android:textColor="#fff"
-        android:layout_below="@+id/ignore_audio"
-        android:layout_alignParentEnd="true" />
+        android:layout_below="@+id/landscape"
+        android:layout_centerHorizontal="true" />
 
     <EditText
         android:layout_width="wrap_content"
@@ -101,5 +101,23 @@
         android:layout_below="@+id/textView5"
         android:layout_alignParentStart="true"
         android:checked="false" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:text="视频方向"
+        android:id="@+id/textView6"
+        android:layout_below="@+id/ignore_audio"
+        android:layout_centerVertical="true"
+        android:layout_alignParentStart="true" />
+
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="横屏"
+        android:id="@+id/landscape"
+        android:checked="false"
+        android:layout_below="@+id/textView6" />
 
 </RelativeLayout>
