@@ -17,9 +17,13 @@
         android:alpha="0.3"
         />
 
-    <TextView android:text="@string/hello_world" android:layout_width="wrap_content"
+    <TextView android:text="00:00:00" android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/welcome" />
+        android:id="@+id/welcome"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:textColor="#a1a1a1"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true" />
 
     <Button
         android:layout_width="wrap_content"

@@ -24,6 +24,7 @@ public class CaptureService extends Service implements Recorder.StateChange{
     public static int DENSITY = 1;
     public static int code;
     public static Intent data = null;
+    public static long RunningTime = 0;
 
     public CaptureService() {
     }
@@ -84,6 +85,7 @@ public class CaptureService extends Service implements Recorder.StateChange{
             try {
                 recorder.start();
                 setNotification();
+                RunningTime = System.currentTimeMillis();
                 IsRunning = true;
             } catch (IOException e) {
                 e.printStackTrace();
@@ -99,6 +101,16 @@ public class CaptureService extends Service implements Recorder.StateChange{
         }
 
         return START_STICKY;
+    }
+
+    public static String getRunningTimeDesc(){
+        if(!IsRunning){
+            return "00:00:00";
+        } else {
+            long tmp = (System.currentTimeMillis() - RunningTime) / 1000;
+            return String.format("%02d:%02d:%02d", (tmp / 3600),
+                    (tmp % 3600 / 60), (tmp % 3600 % 60));
+        }
     }
 
     @Override

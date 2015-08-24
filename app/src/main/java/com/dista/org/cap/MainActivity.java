@@ -4,6 +4,7 @@ import android.app.ActionBar;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.graphics.drawable.ColorDrawable;
@@ -23,6 +24,8 @@ import android.view.Surface;
 import android.view.View;
 import android.widget.Button;
 import android.media.projection.MediaProjectionManager;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.dista.org.cap.exception.RtmpException;
@@ -43,6 +46,7 @@ import static android.widget.Toast.makeText;
 public class MainActivity extends Activity {
     private Button bt;
     private Timer timer;
+    private TextView wl;
 
     @Override
     protected void onResume() {
@@ -62,24 +66,38 @@ public class MainActivity extends Activity {
         Button b = (Button)findViewById(R.id.button);
         bt = b;
 
+        wl = (TextView)findViewById(R.id.welcome);
+
         timer.schedule(new TimerTask() {
             @Override
             public void run() {
                 final String t;
-                if(CaptureService.IsRunning){
-                    t = "Stop Cap";
+                if (CaptureService.IsRunning) {
+                    t = "停止";
                 } else {
-                    t = "Start Cap";
+                    t = "启动";
                 }
 
-                if(!t.equals(bt.getText())){
+                if (!t.equals(bt.getText())) {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
+                            if(CaptureService.IsRunning){
+                                bt.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(255, 90, 46)));
+                            } else {
+                                bt.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(70, 181, 255)));
+                            }
                             bt.setText(t);
                         }
                     });
                 }
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        wl.setText(CaptureService.getRunningTimeDesc());
+                    }
+                });
             }
         }, 10, 10);
 
