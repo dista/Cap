@@ -396,7 +396,7 @@ public class RtmpClient {
         sock.getOutputStream().write(toSend);
     }
 
-    public void sendAVPacket(RtmpAVPacket pkt) throws IOException {
+    public void sendAVPacket(RtmpAVPacket pkt) throws IOException, RtmpException {
         RtmpMsg msg = new RtmpMsg();
 
         // video
@@ -414,5 +414,10 @@ public class RtmpClient {
         msg.setData(pkt.data);
 
         sendMsg(msg);
+
+        // if there is more data, decode it and skip it, we do not care
+        if(this.decoder.hasData()){
+            this.decoder.decode();
+        }
     }
 }

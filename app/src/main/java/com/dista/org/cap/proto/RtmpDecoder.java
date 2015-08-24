@@ -68,6 +68,10 @@ public class RtmpDecoder {
         return rd;
     }
 
+    public boolean hasData() throws IOException {
+        return (this.input.available() != 0);
+    }
+
     public RtmpMsg decode() throws IOException, RtmpException {
         long tmp;
 
