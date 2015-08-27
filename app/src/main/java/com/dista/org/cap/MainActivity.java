@@ -47,6 +47,7 @@ public class MainActivity extends Activity {
     private Button bt;
     private Timer timer;
     private TextView wl;
+    private TextView streamStatus;
 
     @Override
     protected void onResume() {
@@ -67,15 +68,19 @@ public class MainActivity extends Activity {
         bt = b;
 
         wl = (TextView)findViewById(R.id.welcome);
+        streamStatus = (TextView)findViewById(R.id.streamStatus);
 
         timer.schedule(new TimerTask() {
             @Override
             public void run() {
                 final String t;
+                final String x;
                 if (CaptureService.IsRunning) {
                     t = "停止";
+                    x = "录制中";
                 } else {
                     t = "启动";
+                    x = "未录制";
                 }
 
                 if (!t.equals(bt.getText())) {
@@ -88,6 +93,7 @@ public class MainActivity extends Activity {
                                 bt.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(70, 181, 255)));
                             }
                             bt.setText(t);
+                            streamStatus.setText(x);
                         }
                     });
                 }
