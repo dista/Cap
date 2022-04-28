@@ -1,9 +1,11 @@
 package com.dista.org.cap;
 
+import android.Manifest;
 import android.app.ActionBar;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Point;
@@ -11,6 +13,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.hardware.display.VirtualDisplay;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
+import android.media.projection.MediaProjection;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.StrictMode;
@@ -42,16 +45,33 @@ import java.util.TimerTask;
 
 import static android.widget.Toast.makeText;
 
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+
 
 public class MainActivity extends Activity {
     private Button bt;
     private Timer timer;
     private TextView wl;
     private TextView streamStatus;
+    private String [] permissions = {Manifest.permission.RECORD_AUDIO};
+    private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
+    private boolean permissionToRecordAccepted = false;
 
     @Override
     protected void onResume() {
         super.onResume();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode){
+            case REQUEST_RECORD_AUDIO_PERMISSION:
+                permissionToRecordAccepted  = grantResults[0] == PackageManager.PERMISSION_GRANTED;
+                break;
+        }
+        if (!permissionToRecordAccepted ) finish();
     }
 
     @Override
@@ -69,6 +89,8 @@ public class MainActivity extends Activity {
 
         wl = (TextView)findViewById(R.id.welcome);
         streamStatus = (TextView)findViewById(R.id.streamStatus);
+
+        ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION);
 
         timer.schedule(new TimerTask() {
             @Override

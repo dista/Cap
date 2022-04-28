@@ -1,15 +1,21 @@
 package com.dista.org.cap;
 
 import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.projection.MediaProjectionManager;
+import android.os.Build;
 import android.os.IBinder;
+
+import androidx.annotation.RequiresApi;
 
 import com.dista.org.cap.media.Recorder;
 
@@ -29,6 +35,7 @@ public class CaptureService extends Service implements Recorder.StateChange{
     public CaptureService() {
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.Q)
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if(intent == null){
@@ -83,8 +90,8 @@ public class CaptureService extends Service implements Recorder.StateChange{
             recorder.setRtmpParams(host, port, path);
 
             try {
+                setNotification(startId);
                 recorder.start();
-                setNotification();
                 RunningTime = System.currentTimeMillis();
                 IsRunning = true;
             } catch (IOException e) {
@@ -132,21 +139,29 @@ public class CaptureService extends Service implements Recorder.StateChange{
         super.onCreate();
     }
 
-    private void setNotification(){
+    @RequiresApi(api = Build.VERSION_CODES.Q)
+    private void setNotification(int startId){
         Bitmap bm = BitmapFactory.decodeResource(getResources(), R.drawable.ic_toggle_radio_button_on);
 
         Intent notificationIntent = new Intent(this, MainActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
+                notificationIntent, PendingIntent.FLAG_IMMUTABLE);
+
+        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        NotificationChannel channel = new NotificationChannel("notification_id", "notification_name", NotificationManager.IMPORTANCE_LOW);
+        notificationManager.createNotificationChannel(channel);
 
         Notification notification = new Notification.Builder(this)
                 .setContentTitle("Cap")
                 .setContentText("Streaming...")
                 .setSmallIcon(R.drawable.ic_toggle_radio_button_on)
                 .setLargeIcon(bm)
+                .setChannelId("notification_id")
                 .setContentIntent(pendingIntent)
+                .setWhen(System.currentTimeMillis())
                 .build();
 
-        startForeground(222, notification);
+        startForeground(startId, notification);
     }
 
     @Override
