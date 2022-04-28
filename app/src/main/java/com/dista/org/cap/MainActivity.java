@@ -5,6 +5,7 @@ import android.app.ActionBar;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -95,17 +96,25 @@ public class MainActivity extends Activity {
         timer.schedule(new TimerTask() {
             @Override
             public void run() {
-                final String t;
-                final String x;
+                final String buttonText;
+                final String status;
                 if (CaptureService.IsRunning) {
-                    t = "停止";
-                    x = "录制中";
+                    buttonText = "停止";
+                    status = "录屏推流中";
                 } else {
-                    t = "启动";
-                    x = "未录制";
+                    buttonText = "启动";
+
+                    SharedPreferences sp = getSharedPreferences("Cap", 0);
+                    String ipPort = sp.getString("ip_port", "");
+
+                    if (ipPort.isEmpty()) {
+                        status = "未配置，请使用右上角菜单配置推流";
+                    } else {
+                        status = "已停止";
+                    }
                 }
 
-                if (!t.equals(bt.getText())) {
+                if (!buttonText.equals(bt.getText())) {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -114,8 +123,8 @@ public class MainActivity extends Activity {
                             } else {
                                 bt.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(70, 181, 255)));
                             }
-                            bt.setText(t);
-                            streamStatus.setText(x);
+                            bt.setText(buttonText);
+                            streamStatus.setText(status);
                         }
                     });
                 }

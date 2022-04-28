@@ -1,7 +1,6 @@
 package com.dista.org.cap.media;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.media.AudioFormat;
@@ -21,7 +20,9 @@ import com.dista.org.cap.exception.RtmpException;
 import com.dista.org.cap.net.RtmpClient;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 
 /**
@@ -52,7 +53,7 @@ public class Recorder {
     private boolean ignoreAudio;
 
     // streaming
-    private String ip;
+    private String domain;
     private int port;
     private String path;
 
@@ -91,7 +92,7 @@ public class Recorder {
     }
 
     public void setRtmpParams(String ip, int port, String path){
-        this.ip = ip;
+        this.domain = ip;
         this.port = port;
         this.path = path;
     }
@@ -276,6 +277,16 @@ public class Recorder {
                     RtmpClient rc = new RtmpClient();
                     rtmpClient = rc;
 
+                    InetAddress address = InetAddress.getByName(domain);
+                    String ip = address.getHostAddress();
+
+                    String[] items = path.split("/");
+                    if (items.length < 1) {
+                        return null;
+                    }
+
+                    String tcUrl = String.format("rtmp://%s:%d/%s", domain, port, items[0]);
+
                     connectingServer = true;
                     rc.connect(new InetSocketAddress(ip, port), 30000, path);
                     connectingServer = false;
@@ -294,7 +305,7 @@ public class Recorder {
                     meta.audioSampleRate = 44100;
                     meta.encoder = Build.MODEL + "(" + "Android"
                             + Build.VERSION.RELEASE + ")" + "[Cap]";
-                    rc.publish(meta);
+                    rc.publish(meta, tcUrl);
 
                     return rc;
                 } catch (RtmpException e) {
@@ -302,6 +313,8 @@ public class Recorder {
                 } catch (InstantiationException e) {
                     e.printStackTrace();
                 } catch (NoSuchFieldException e) {
+                    e.printStackTrace();
+                } catch (UnknownHostException e) {
                     e.printStackTrace();
                 }
 

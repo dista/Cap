@@ -119,9 +119,9 @@ public class RtmpClient {
         return isHandled;
     }
 
-    public void publish(AVMetaData meta) throws RtmpException, NoSuchFieldException, InstantiationException {
+    public void publish(AVMetaData meta, String tcUrl) throws RtmpException, NoSuchFieldException, InstantiationException {
         try {
-            sendConnect();
+            sendConnect(tcUrl);
             handleResult();
 
             sendWindowAckSize(2500000);
@@ -267,7 +267,7 @@ public class RtmpClient {
         sendMsg(msg);
     }
 
-    private void sendConnect() throws IOException, IllegalAccessException {
+    private void sendConnect(String tcUrl) throws IOException, IllegalAccessException {
         RtmpMsg msg = new RtmpMsg();
         msg.getHeader().setCsId(3);
         msg.getHeader().setMsgTypeId((short) 0x14);
@@ -283,7 +283,7 @@ public class RtmpClient {
         String[] items = this.path.split("/");
 
         obj.app = items[0];
-        obj.tcUrl = "";
+        obj.tcUrl = tcUrl;
         obj.swfUrl = "";
         obj.type = "";
         obj.flashVer = "Cap/1.0";

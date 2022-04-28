@@ -251,7 +251,7 @@ public class Amf {
         }
 
         if(type == AMF0_ECMA_ARRAY){
-            Util.readLongFromByteBuffer(bf, true, 2);
+            Util.readLongFromByteBuffer(bf, true, 4);
         }
 
         while(true) {
