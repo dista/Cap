@@ -39,7 +39,7 @@ public class Recorder {
     private int videoBitrate;
     private boolean exit;
 
-    private MediaProjectionManager mm;
+    private MediaProjectionManager mpMgr;
     public MediaProjection mp;
     private MediaCodec mediaCodec;
     private VirtualDisplay vd2;
@@ -86,7 +86,7 @@ public class Recorder {
 
     public void setMediaProjectionManagerValues(MediaProjectionManager mm,
                                                 int code, Intent data) {
-        this.mm = mm;
+        this.mpMgr = mm;
         this.code = code;
         this.data = data;
     }
@@ -424,11 +424,11 @@ public class Recorder {
     }
 
     private void configureVideoEncoder() throws IOException {
-        if(this.mm == null){
+        if(this.mpMgr == null){
             throw new IllegalArgumentException("mm is null");
         }
 
-        mp = mm.getMediaProjection(code, data);
+        mp = mpMgr.getMediaProjection(code, data);
 
         mediaCodec = MediaCodec.createEncoderByType("video/avc");
 
@@ -439,6 +439,21 @@ public class Recorder {
         mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, fps);
         mediaFormat.setInteger(MediaFormat.KEY_CAPTURE_RATE, fps);
         mediaFormat.setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1000000 / fps);
+        mediaFormat.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileHigh);
+        mediaFormat.setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.AVCLevel5);
+
+        int encodeWidth = this.width;
+        int encodeHeight = this.height;
+
+        int lowest = this.width > this.height ? this.height : this.width;
+
+        if (lowest > 720) {
+            encodeWidth = this.width * 720 / lowest;
+            encodeHeight = this.height * 720 / lowest;
+        }
+
+        mediaFormat.setInteger(MediaFormat.KEY_WIDTH, encodeWidth);
+        mediaFormat.setInteger(MediaFormat.KEY_HEIGHT, encodeHeight);
 
         mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
         mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 10);
