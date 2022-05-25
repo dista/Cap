@@ -10,9 +10,11 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.Toast;
 
 import com.dista.org.cap.R;
@@ -38,6 +40,9 @@ public class SettingActivity extends Activity {
         int bitrate = sp.getInt("bitrate", 1000);
         boolean ignoreAudio = sp.getBoolean("ignore_audio", false);
         boolean isLandscape = sp.getBoolean("landscape", false);
+        String selectAudioCodec = sp.getString("audio_codec", "AAC");
+        String selectAudioSampleRate = sp.getString("audio_sample_rate", "44100");
+        String selectAudioChannel = sp.getString("audio_channel", "Mono");
 
         ipPortView = (EditText)findViewById(R.id.ip_port);
         ipPortView.setText(ipPort);
@@ -54,6 +59,27 @@ public class SettingActivity extends Activity {
         landscape = (CheckBox)findViewById(R.id.landscape);
         landscape.setChecked(isLandscape);
 
+        Spinner audio_codec = (Spinner)findViewById(R.id.audio_codec_spinner);
+        ArrayAdapter<CharSequence> ac_adapter = ArrayAdapter.createFromResource(this,
+                R.array.audio_codec, android.R.layout.simple_spinner_item);
+        ac_adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        audio_codec.setAdapter(ac_adapter);
+        audio_codec.setSelection(ac_adapter.getPosition(selectAudioCodec));
+
+        Spinner audio_sample_rate = (Spinner)findViewById(R.id.audio_samplerate_spinner);
+        ArrayAdapter<CharSequence> as_adapter = ArrayAdapter.createFromResource(this,
+                R.array.audio_sample_rate, android.R.layout.simple_spinner_item);
+        as_adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        audio_sample_rate.setAdapter(as_adapter);
+        audio_sample_rate.setSelection(as_adapter.getPosition(selectAudioSampleRate));
+
+        Spinner audio_channel = (Spinner)findViewById(R.id.audio_channel_spinner);
+        ArrayAdapter<CharSequence> channel_adapter = ArrayAdapter.createFromResource(this,
+                R.array.audio_channel, android.R.layout.simple_spinner_item);
+        channel_adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        audio_channel.setAdapter(channel_adapter);
+        audio_channel.setSelection(channel_adapter.getPosition(selectAudioChannel));
+
         final Activity self = this;
 
         saveButton = (Button)findViewById(R.id.save);
@@ -66,6 +92,9 @@ public class SettingActivity extends Activity {
                 edit.putInt("bitrate", Integer.valueOf(String.valueOf(bitrateView.getText())));
                 edit.putBoolean("ignore_audio", cb.isChecked());
                 edit.putBoolean("landscape", landscape.isChecked());
+                edit.putString("audio_codec", audio_codec.getSelectedItem().toString());
+                edit.putString("audio_sample_rate", audio_sample_rate.getSelectedItem().toString());
+                edit.putString("audio_channel", audio_channel.getSelectedItem().toString());
                 edit.commit();
 
                 Toast.makeText(self, "保存成功", Toast.LENGTH_SHORT).show();

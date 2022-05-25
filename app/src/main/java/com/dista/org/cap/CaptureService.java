@@ -17,6 +17,7 @@ import android.os.IBinder;
 
 import androidx.annotation.RequiresApi;
 
+import com.dista.org.cap.media.AudioCodec;
 import com.dista.org.cap.media.Recorder;
 
 import java.io.IOException;
@@ -61,6 +62,9 @@ public class CaptureService extends Service implements Recorder.StateChange{
             String path = sp.getString("path", "");
             boolean ignoreAudio = sp.getBoolean("ignore_audio", false);
             boolean landscape = sp.getBoolean("landscape", false);
+            String audioSampleRateStr = sp.getString("audio_sample_rate", "44100");
+            String audioChannelStr = sp.getString("audio_channel", "Mono");
+            String audioCodecStr = sp.getString("audio_codec", "AAC");
 
             String[] vp = ipPort.split(":");
             String host = vp[0];
@@ -84,8 +88,20 @@ public class CaptureService extends Service implements Recorder.StateChange{
                 height = WIDTH;
             }
 
+            AudioCodec audioCodec = AudioCodec.AAC;
+            int sampleRate = Integer.parseInt(audioSampleRateStr);
+            int channel = 2;
+
+            if (audioChannelStr.equals("Mono")) {
+                channel = 1;
+            }
+
+            if (audioCodecStr.equals("OPUS")) {
+                audioCodec = AudioCodec.OPUS;
+            }
+
             recorder = new Recorder(width, height, DENSITY, sp.getInt("bitrate", 1000) * 1000,
-                    ignoreAudio, this);
+                    ignoreAudio, this, audioCodec, sampleRate, channel);
             recorder.setMediaProjectionManagerValues(mm, code, data);
             recorder.setRtmpParams(host, port, path);
 

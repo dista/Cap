@@ -32,6 +32,7 @@ public class Flv {
     private RtmpAVPacket avcHeader;
     private RtmpAVPacket aacHeader;
     private ConcurrentLinkedQueue<RtmpAVPacket> pkts;
+    private int channel;
 
     public Flv(){
         pkts = new ConcurrentLinkedQueue<RtmpAVPacket>();
@@ -62,6 +63,10 @@ public class Flv {
         pkt.data = os.toByteArray();
 
         this.avcHeader = pkt;
+    }
+
+    public void SetAudioChannel(int channel) {
+        this.channel = channel;
     }
 
     public RtmpAVPacket buildAACHeaderExternalParams(int profile, int sfi, int cfg, long timestamp) throws IOException {
@@ -128,16 +133,26 @@ public class Flv {
         return pkt;
     }
 
-    private RtmpAVPacket buildAAC(byte[] buf, int start, int end, long dts, long pts) throws IOException {
+    private RtmpAVPacket buildAudioTag(int format, byte[] buf, int start, int end, long dts, long pts) throws IOException {
         ByteArrayOutputStream os = new ByteArrayOutputStream();
 
-        int soundFormat = 10;
+        int soundFormat = format;
         int soundRate = 3;
         int soundType = 1;
+
+        if (format == 9) {
+            if (this.channel == 1) {
+                soundType = 0;
+            }
+        }
+
         int tmp = (soundFormat << 4) + (soundRate << 2) + 0x2
                 + soundType;
         Util.OutStreamWriteInt(os, true, tmp, 1);
-        Util.OutStreamWriteInt(os, true, 1, 1);
+        if (format == 10) {
+            Util.OutStreamWriteInt(os, true, 1, 1);
+        }
+
         os.write(buf, start, end - start);
 
         RtmpAVPacket pkt = new RtmpAVPacket();
@@ -229,10 +244,16 @@ public class Flv {
         return h;
     }
 
-    public void feedRawAAC(byte[] rawAAC, long dts, long pts){
+    public void feedRaw(AudioCodec codec, byte[] raw, long dts, long pts){
         RtmpAVPacket pkt = null;
         try {
-            pkt = buildAAC(rawAAC, 0, rawAAC.length, dts, pts);
+            //AudioCodec.AAC
+            int format = 10;
+            if (codec == AudioCodec.OPUS) {
+                format = 9;
+            }
+
+            pkt = buildAudioTag(format, raw, 0, raw.length, dts, pts);
             pkts.add(pkt);
         } catch (IOException e) {
             e.printStackTrace();
@@ -250,7 +271,7 @@ public class Flv {
 
         RtmpAVPacket pkt = null;
         try {
-            pkt = buildAAC(adts, bf.position(), bf.limit(), dts, pts);
+            pkt = buildAudioTag(10, adts, bf.position(), bf.limit(), dts, pts);
             pkts.add(pkt);
         } catch (IOException e) {
             e.printStackTrace();

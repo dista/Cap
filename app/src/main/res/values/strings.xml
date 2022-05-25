@@ -5,4 +5,21 @@
     <string name="action_settings">设置</string>
     <string name="start_failed">请求失败</string>
     <string name="title_activity_setting">Cap设置</string>
+
+    <string-array name="audio_codec">
+        <item>AAC</item>
+        <item>OPUS</item>
+    </string-array>
+
+    <string-array name="audio_sample_rate">
+        <item>44100</item>
+        <item>48000</item>
+    </string-array>
+
+    <string-array name="audio_channel">
+        <item>Mono</item>
+        <item>Stereo</item>
+    </string-array>
+
+
 </resources>

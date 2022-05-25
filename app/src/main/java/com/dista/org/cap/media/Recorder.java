@@ -1,6 +1,9 @@
 package com.dista.org.cap.media;
 
+import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.media.AudioFormat;
@@ -12,8 +15,11 @@ import android.media.MediaRecorder;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.os.Build;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Surface;
+
+import androidx.core.app.ActivityCompat;
 
 import com.dista.org.cap.exception.AVException;
 import com.dista.org.cap.exception.RtmpException;
@@ -65,6 +71,10 @@ public class Recorder {
     private boolean connectingServer;
     private RtmpClient rtmpClient;
 
+    private AudioCodec audioCodec;
+    private int audioSampleRate;
+    private int audioChannel;
+
     private class EncodedData {
         private byte[] data;
         private long pts;
@@ -73,14 +83,20 @@ public class Recorder {
 
     public Recorder(int width, int height, int density,
                     int videoBitrate, boolean ignoreAudio,
-                    StateChange st
-                    ){
+                    StateChange st,
+                    AudioCodec audioCodec,
+                    int audioSampleRate,
+                    int audioChannel
+    ) {
         this.width = width;
         this.height = height;
         this.density = density;
         this.videoBitrate = videoBitrate;
         this.ignoreAudio = ignoreAudio;
         this.st = st;
+        this.audioCodec = audioCodec;
+        this.audioSampleRate = audioSampleRate;
+        this.audioChannel = audioChannel;
         connectingServer = false;
     }
 
@@ -91,28 +107,28 @@ public class Recorder {
         this.data = data;
     }
 
-    public void setRtmpParams(String ip, int port, String path){
+    public void setRtmpParams(String ip, int port, String path) {
         this.domain = ip;
         this.port = port;
         this.path = path;
     }
 
-    private void clearAudioEncoder(){
-        if(aRec != null){
+    private void clearAudioEncoder() {
+        if (aRec != null) {
             aRec.release();
             aRec = null;
         }
 
-        if(aEnc != null){
+        if (aEnc != null) {
             aEnc.release();
             aEnc = null;
         }
     }
 
-    private void recordOneAudio(){
+    private void recordOneAudio() {
         int inputIdx = aEnc.dequeueInputBuffer(0);
 
-        if(inputIdx >= 0){
+        if (inputIdx >= 0) {
             ByteBuffer b = aEnc.getInputBuffer(inputIdx);
             b.clear();
 
@@ -153,7 +169,7 @@ public class Recorder {
 
             // may FIXME: we get first frame as length = 2 and pts = 0,
             // but I do not know what it is now. Simply skip it first.
-            if(d.data.length < 10 && d.pts == 0){
+            if (d.data.length < 10 && d.pts == 0) {
                 return null;
             }
 
@@ -163,23 +179,23 @@ public class Recorder {
         return null;
     }
 
-    private void clearVideoEncoder(){
-        if(mp != null) {
+    private void clearVideoEncoder() {
+        if (mp != null) {
             mp.stop();
             mp = null;
         }
 
-        if(mediaCodec != null){
+        if (mediaCodec != null) {
             try {
                 mediaCodec.stop();
-            } catch (IllegalStateException e){
+            } catch (IllegalStateException e) {
                 // nothing
             }
 
-            if(sf != null) {
+            if (sf != null) {
                 sf.release();
             }
-            if(vd2 != null) {
+            if (vd2 != null) {
                 vd2.release();
             }
             vd2 = null;
@@ -188,7 +204,7 @@ public class Recorder {
         }
     }
 
-    private void releaseResource(){
+    private void releaseResource() {
         clearVideoEncoder();
         clearAudioEncoder();
 
@@ -198,14 +214,14 @@ public class Recorder {
     public void start() throws IOException {
         configureVideoEncoder();
 
-        if(!ignoreAudio) {
+        if (!ignoreAudio) {
             configureAudioEncoder();
         }
 
         // start video
         mediaCodec.start();
 
-        if(!ignoreAudio) {
+        if (!ignoreAudio) {
             // start audio
             aRec.startRecording();
             aEnc.start();
@@ -214,8 +230,9 @@ public class Recorder {
         final long initTime = System.currentTimeMillis() * 1000;
         final long BASE_TIME = 100000;
         final Flv flv = new Flv();
+        flv.SetAudioChannel(this.audioChannel);
 
-        if(!ignoreAudio) {
+        if (!ignoreAudio) {
             audioThread = new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -239,11 +256,16 @@ public class Recorder {
                                 long audioDts = encodedData.pts - initTime + BASE_TIME;
                                 long audioPts = audioDts;
 
-                                if (!aacHeaderWritten) {
+                                if (!aacHeaderWritten && audioCodec == AudioCodec.AAC) {
                                     // AAC LC
                                     // 44100
                                     // CPE = 1
-                                    RtmpAVPacket aacH = flv.buildAACHeaderExternalParams(2, 4, 1
+                                    int sfi = 4; // 44100
+                                    if (audioSampleRate == 48000) {
+                                        sfi = 3;
+                                    }
+                                    int cfg = audioChannel;
+                                    RtmpAVPacket aacH = flv.buildAACHeaderExternalParams(2, sfi, cfg
                                             , audioDts);
 
                                     flv.getPkts().add(aacH);
@@ -255,7 +277,7 @@ public class Recorder {
 
                                 // MAY FIXME: audioDts may less than lastADts
                                 if (lastADts != -1 && audioDts > lastADts) {
-                                    flv.feedRawAAC(encodedData.data, audioDts, audioPts);
+                                    flv.feedRaw(audioCodec, encodedData.data, audioDts, audioPts);
                                     lastADts = audioDts;
                                 } else if (lastADts == -1) {
                                     lastADts = audioDts;
@@ -272,7 +294,7 @@ public class Recorder {
         }
 
         videoThread = new Thread(new Runnable() {
-            private RtmpClient setUpRtmp(){
+            private RtmpClient setUpRtmp() {
                 try {
                     RtmpClient rc = new RtmpClient();
                     rtmpClient = rc;
@@ -296,13 +318,18 @@ public class Recorder {
                     meta.videoMIMEType = MediaFormat.MIMETYPE_VIDEO_AVC;
                     meta.videoHeight = width;
                     meta.videoWidth = height;
-                    meta.videoDataRate = videoBitrate;
+                    meta.videoDataRate = videoBitrate / 1000;
                     meta.videoFrameRate = 25;
                     meta.hasAudio = !ignoreAudio;
                     meta.audioMIMEType = MediaFormat.MIMETYPE_AUDIO_AAC;
-                    meta.audioChannels = 1;
+
+                    if (audioCodec == AudioCodec.OPUS) {
+                        meta.audioMIMEType = MediaFormat.MIMETYPE_AUDIO_OPUS;
+                    }
+
+                    meta.audioChannels = audioChannel;
                     meta.audioDataRate = 64;
-                    meta.audioSampleRate = 44100;
+                    meta.audioSampleRate = audioSampleRate;
                     meta.encoder = Build.MODEL + "(" + "Android"
                             + Build.VERSION.RELEASE + ")" + "[Cap]";
                     rc.publish(meta, tcUrl);
@@ -325,7 +352,7 @@ public class Recorder {
 
             public void run() {
                 RtmpClient ds = setUpRtmp();
-                if(ds == null){
+                if (ds == null) {
                     cleanUpOnVideoStopped();
                     return;
                 }
@@ -333,7 +360,7 @@ public class Recorder {
                 long startPts = -1;
                 long startDts = -1;
 
-                while(!exit) {
+                while (!exit) {
                     try {
                         MediaCodec.BufferInfo bi = new MediaCodec.BufferInfo();
                         int duration = 1000;
@@ -354,7 +381,7 @@ public class Recorder {
 
                             int nalType = NalUtil.getNalType(outData);
 
-                            if(nalType == 7){
+                            if (nalType == 7) {
                                 flv.feedNal(outData, 0, 0);
                                 ds.sendAVPacket(flv.getAvcHeader());
 
@@ -370,7 +397,7 @@ public class Recorder {
                             } else {
                                 long timeline = System.currentTimeMillis() * 1000;
                                 long dts = timeline - initTime + BASE_TIME - 10000;
-                                if(startPts == -1){
+                                if (startPts == -1) {
                                     // XXX: make sure dts is less than pts
                                     startPts = bi.presentationTimeUs;
                                     startDts = dts;
@@ -391,13 +418,13 @@ public class Recorder {
 
                             mediaCodec.releaseOutputBuffer(code, false);
                         }
-                    } catch (Exception e){
+                    } catch (Exception e) {
                         e.printStackTrace();
                         break;
                     }
                 }
 
-                if(ds != null){
+                if (ds != null) {
                     ds.close();
                     ds = null;
                 }
@@ -409,10 +436,10 @@ public class Recorder {
         videoThread.start();
     }
 
-    private void cleanUpOnVideoStopped(){
+    private void cleanUpOnVideoStopped() {
         exit = true;
 
-        if(audioThread != null){
+        if (audioThread != null) {
             try {
                 audioThread.join();
             } catch (InterruptedException e) {
@@ -424,23 +451,35 @@ public class Recorder {
     }
 
     private void configureVideoEncoder() throws IOException {
-        if(this.mpMgr == null){
+        if (this.mpMgr == null) {
             throw new IllegalArgumentException("mm is null");
         }
 
         mp = mpMgr.getMediaProjection(code, data);
 
-        mediaCodec = MediaCodec.createEncoderByType("video/avc");
+        mediaCodec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
 
         int fps = 25;
 
-        MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", this.width, this.height);
+        MediaFormat mediaFormat = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, this.width, this.height);
+
+        MediaCodecInfo.CodecCapabilities cap = mediaCodec.getCodecInfo().getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC);
+        MediaCodecInfo.EncoderCapabilities enCap = cap.getEncoderCapabilities();
+        if (enCap.isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR)) {
+            mediaFormat.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR);
+        }
+
         mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, this.videoBitrate);
         mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, fps);
         mediaFormat.setInteger(MediaFormat.KEY_CAPTURE_RATE, fps);
         mediaFormat.setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1000000 / fps);
         mediaFormat.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileHigh);
         mediaFormat.setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.AVCLevel5);
+        // WE DO NOT KNOWN IF IT REALLY WORK
+        mediaFormat.setInteger(MediaFormat.KEY_LATENCY, 0);
+        mediaFormat.setInteger(MediaFormat.KEY_PRIORITY, 0x00);
+        // microseconds
+        // mediaFormat.setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 40000);
 
         int encodeWidth = this.width;
         int encodeHeight = this.height;
@@ -456,8 +495,10 @@ public class Recorder {
         mediaFormat.setInteger(MediaFormat.KEY_HEIGHT, encodeHeight);
 
         mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 10);
+        mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2);
         mediaCodec.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+
+
 
         sf = mediaCodec.createInputSurface();
 
@@ -467,25 +508,38 @@ public class Recorder {
         );
     }
 
+    @SuppressLint("MissingPermission")
     private boolean configureAudioEncoder() throws IOException {
-        int sampleRate = 44100;
+        int sampleRate = audioSampleRate;
         int channelConfig = AudioFormat.CHANNEL_IN_MONO;
+        if (audioChannel == 2) {
+            channelConfig = AudioFormat.CHANNEL_IN_STEREO;
+        }
         int audioFormat = AudioFormat.ENCODING_PCM_16BIT;
+
         aRec = new AudioRecord(MediaRecorder.AudioSource.MIC,
                 sampleRate, channelConfig, audioFormat,
                 AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat));
 
         // encoder
-        // mono
         MediaFormat fmt = new MediaFormat();
-        fmt.setString(MediaFormat.KEY_MIME, MediaFormat.MIMETYPE_AUDIO_AAC);
-        fmt.setInteger(MediaFormat.KEY_SAMPLE_RATE, 44100);
-        fmt.setInteger(MediaFormat.KEY_BIT_RATE, 64000);
-        fmt.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
-        fmt.setInteger(MediaFormat.KEY_AAC_PROFILE,
-                MediaCodecInfo.CodecProfileLevel.AACObjectLC);
 
-        aEnc = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC);
+        String audioMime = MediaFormat.MIMETYPE_AUDIO_AAC;
+        if (audioCodec == AudioCodec.OPUS) {
+            audioMime = MediaFormat.MIMETYPE_AUDIO_OPUS;
+        }
+
+        fmt.setString(MediaFormat.KEY_MIME, audioMime);
+        fmt.setInteger(MediaFormat.KEY_SAMPLE_RATE, sampleRate);
+        fmt.setInteger(MediaFormat.KEY_BIT_RATE, 64000);
+        fmt.setInteger(MediaFormat.KEY_CHANNEL_COUNT, audioChannel);
+
+        if (audioCodec == AudioCodec.AAC) {
+            fmt.setInteger(MediaFormat.KEY_AAC_PROFILE,
+                    MediaCodecInfo.CodecProfileLevel.AACObjectLC);
+        }
+
+        aEnc = MediaCodec.createEncoderByType(audioMime);
         aEnc.configure(fmt, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
 
         return true;

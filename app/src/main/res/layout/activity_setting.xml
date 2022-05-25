@@ -18,33 +18,33 @@
         android:layout_alignParentStart="true" />
 
     <EditText
+        android:id="@+id/ip_port"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/ip_port"
         android:layout_below="@+id/textView"
         android:layout_alignParentStart="true"
         android:layout_alignParentEnd="true"
         android:hint="ip:port"
-        />
+        android:minHeight="48dp" />
 
     <TextView
+        android:id="@+id/textView2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceSmall"
-        android:text="rtmp路径"
-        android:id="@+id/textView2"
+        android:layout_below="@+id/ip_port"
         android:layout_alignParentStart="true"
-        android:layout_below="@+id/ip_port" />
+        android:text="rtmp路径"
+        android:textAppearance="?android:attr/textAppearanceSmall" />
 
     <EditText
+        android:id="@+id/path"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/path"
         android:layout_below="@+id/textView2"
         android:layout_alignParentStart="true"
         android:layout_alignParentEnd="true"
         android:hint="app/stream"
-        />
+        android:minHeight="48dp" />
 
     <TextView
         android:layout_width="wrap_content"
@@ -55,70 +55,111 @@
         android:layout_below="@+id/path"
         android:layout_alignParentStart="true" />
 
-    <Button
-        android:layout_width="150dp"
-        android:layout_height="wrap_content"
-        android:text="保存"
-        android:id="@+id/save"
-        android:backgroundTint="#46b5ff"
-        android:textColor="#fff"
-        android:layout_below="@+id/landscape"
-        android:layout_centerHorizontal="true" />
-
     <EditText
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:inputType="numberSigned"
-        android:ems="10"
         android:id="@+id/bitrate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_below="@+id/textView3"
-        android:layout_alignParentStart="true" />
+        android:layout_alignParentStart="true"
+        android:ems="10"
+        android:inputType="numberSigned"
+        android:minHeight="48dp" />
 
     <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceSmall"
-        android:text="kbps"
-        android:gravity="center"
         android:id="@+id/textView4"
-        android:layout_toEndOf="@+id/bitrate"
-        android:layout_alignBottom="@+id/bitrate"
-        android:layout_alignTop="@+id/bitrate" />
-
-    <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceSmall"
-        android:text="音频"
+        android:layout_alignTop="@+id/bitrate"
+        android:layout_alignBottom="@+id/bitrate"
+        android:layout_toEndOf="@+id/bitrate"
+        android:gravity="center"
+        android:text="kbps"
+        android:textAppearance="?android:attr/textAppearanceSmall" />
+
+    <TextView
         android:id="@+id/textView5"
-        android:layout_below="@+id/bitrate"
-        android:layout_alignParentStart="true" />
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/landscape"
+        android:layout_alignParentStart="true"
+        android:text="音频开关"
+        android:textAppearance="?android:attr/textAppearanceSmall" />
 
     <CheckBox
+        android:id="@+id/ignore_audio"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="忽略音频"
-        android:id="@+id/ignore_audio"
         android:layout_below="@+id/textView5"
         android:layout_alignParentStart="true"
-        android:checked="false" />
+        android:checked="false"
+        android:minHeight="48dp"
+        android:text="忽略音频" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textAppearance="?android:attr/textAppearanceSmall"
         android:text="视频方向"
-        android:id="@+id/textView6"
-        android:layout_below="@+id/ignore_audio"
+        android:id="@+id/video_ori"
+        android:layout_below="@+id/bitrate"
         android:layout_centerVertical="true"
         android:layout_alignParentStart="true" />
 
     <CheckBox
+        android:id="@+id/landscape"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="横屏"
-        android:id="@+id/landscape"
+        android:layout_below="@+id/video_ori"
         android:checked="false"
-        android:layout_below="@+id/textView6" />
+        android:minHeight="48dp"
+        android:text="横屏" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:text="音频编码"
+        android:id="@+id/audio_codec"
+        android:layout_below="@+id/ignore_audio"
+        android:layout_centerVertical="true"
+        android:layout_alignParentStart="true" />
+
+    <Spinner
+        android:id="@+id/audio_codec_spinner"
+        android:layout_width="100dp"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/audio_codec"
+        android:layout_marginTop="1dp"
+        android:minHeight="48dp" />
+
+    <Spinner
+        android:id="@+id/audio_samplerate_spinner"
+        android:layout_width="120dp"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@id/audio_codec_spinner"
+        android:layout_toRightOf="@+id/audio_codec_spinner"
+        android:layout_marginTop="1dp"
+        android:layout_marginLeft="10dp"
+        android:minHeight="48dp" />
+
+    <Spinner
+        android:id="@+id/audio_channel_spinner"
+        android:layout_width="120dp"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@id/audio_codec_spinner"
+        android:layout_toRightOf="@+id/audio_samplerate_spinner"
+        android:layout_marginTop="1dp"
+        android:layout_marginLeft="10dp"
+        android:minHeight="48dp" />
+
+    <Button
+        android:id="@+id/save"
+        android:layout_width="150dp"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/audio_codec_spinner"
+        android:layout_centerHorizontal="true"
+        android:backgroundTint="#46b5ff"
+        android:text="保存"
+        android:textColor="#fff" />
 
 </RelativeLayout>
