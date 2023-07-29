@@ -364,7 +364,7 @@ public class Recorder {
                 while (!exit) {
                     try {
                         MediaCodec.BufferInfo bi = new MediaCodec.BufferInfo();
-                        int duration = 5000;
+                        int duration = 1000;
                         //Log.d("JKS", "start to dequeue");
                         int code = mediaCodec.dequeueOutputBuffer(bi, duration);
                         //Log.d("JKS", "done dequeue:" + code);
