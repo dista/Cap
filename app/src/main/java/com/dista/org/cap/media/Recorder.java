@@ -364,11 +364,13 @@ public class Recorder {
                 while (!exit) {
                     try {
                         MediaCodec.BufferInfo bi = new MediaCodec.BufferInfo();
-                        int duration = 1000;
+                        int duration = 5000;
+                        //Log.d("JKS", "start to dequeue");
                         int code = mediaCodec.dequeueOutputBuffer(bi, duration);
+                        //Log.d("JKS", "done dequeue:" + code);
 
                         if (code == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                            //Log.d("", "Try later");
+                            //Log.d("JKS", "Try later");
                         } else if (code == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                             Log.d("", "Format changed");
                         } else if (code < 0) {
@@ -379,6 +381,8 @@ public class Recorder {
 
                             byte[] outData = new byte[bi.size];
                             bf.get(outData);
+
+                            //Log.d("JKS", "GET BUF:" + outData.length);
 
                             int nalType = NalUtil.getNalType(outData);
 
@@ -409,15 +413,16 @@ public class Recorder {
                                 //Log.d("", "dts: " + dts + " pts: " + pts);
 
                                 flv.feedNal(outData, dts, pts);
-                                while (!flv.getPkts().isEmpty() && !exit) {
-                                    RtmpAVPacket pkt = flv.getPkts().remove();
-                                    ds.sendAVPacket(pkt);
-                                }
                             }
 
                             // generate av packet
 
                             mediaCodec.releaseOutputBuffer(code, false);
+                        }
+
+                        while (!flv.getPkts().isEmpty() && !exit) {
+                            RtmpAVPacket pkt = flv.getPkts().remove();
+                            ds.sendAVPacket(pkt);
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -460,7 +465,7 @@ public class Recorder {
 
         mediaCodec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
 
-        int fps = 25;
+        int fps = 15;
 
         MediaFormat mediaFormat = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, this.width, this.height);
 
@@ -475,7 +480,7 @@ public class Recorder {
         mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, this.videoBitrate);
         mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, fps);
         mediaFormat.setInteger(MediaFormat.KEY_CAPTURE_RATE, fps);
-        mediaFormat.setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1000000 / fps);
+        //mediaFormat.setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1000000 / fps * 2);
         mediaFormat.setInteger(MediaFormat.KEY_PROFILE, codec.mHighestProfile);
         mediaFormat.setInteger(MediaFormat.KEY_LEVEL, codec.mHighestLevel);
         // WE DO NOT KNOWN IF IT REALLY WORK
