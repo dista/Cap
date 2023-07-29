@@ -41,8 +41,8 @@ public class SettingActivity extends Activity {
         boolean ignoreAudio = sp.getBoolean("ignore_audio", false);
         boolean isLandscape = sp.getBoolean("landscape", false);
         String selectAudioCodec = sp.getString("audio_codec", "AAC");
-        String selectAudioSampleRate = sp.getString("audio_sample_rate", "44100");
-        String selectAudioChannel = sp.getString("audio_channel", "Mono");
+        String selectAudioSampleRate = sp.getString("audio_sample_rate", "48000");
+        String selectAudioChannel = sp.getString("audio_channel", "Stereo");
 
         ipPortView = (EditText)findViewById(R.id.ip_port);
         ipPortView.setText(ipPort);

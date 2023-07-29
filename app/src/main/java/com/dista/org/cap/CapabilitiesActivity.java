@@ -35,6 +35,19 @@ public class CapabilitiesActivity extends Activity {
         sb.append("    highestLevel:");
         sb.append(codec.mHighestLevelStr);
         sb.append("\n");
+        sb.append("    highestProfile:");
+        sb.append(codec.mHighestProfileStr);
+        sb.append("\n");
+        sb.append("  Screen\n");
+        sb.append("    width:");
+        sb.append(Capabilities.width);
+        sb.append("\n");
+        sb.append("    height:");
+        sb.append(Capabilities.height);
+        sb.append("\n");
+        sb.append("    densityDpi:");
+        sb.append(Capabilities.densityDpi);
+        sb.append("\n");
 
         txt.append(sb.toString());
     }

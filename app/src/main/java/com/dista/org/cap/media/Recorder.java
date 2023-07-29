@@ -24,6 +24,7 @@ import androidx.core.app.ActivityCompat;
 import com.dista.org.cap.exception.AVException;
 import com.dista.org.cap.exception.RtmpException;
 import com.dista.org.cap.net.RtmpClient;
+import com.dista.org.cap.util.Capabilities;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -316,8 +317,8 @@ public class Recorder {
                     AVMetaData meta = new AVMetaData();
                     meta.hasVideo = true;
                     meta.videoMIMEType = MediaFormat.MIMETYPE_VIDEO_AVC;
-                    meta.videoHeight = width;
-                    meta.videoWidth = height;
+                    meta.videoHeight = height;
+                    meta.videoWidth = width;
                     meta.videoDataRate = videoBitrate / 1000;
                     meta.videoFrameRate = 25;
                     meta.hasAudio = !ignoreAudio;
@@ -465,40 +466,39 @@ public class Recorder {
 
         MediaCodecInfo.CodecCapabilities cap = mediaCodec.getCodecInfo().getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC);
         MediaCodecInfo.EncoderCapabilities enCap = cap.getEncoderCapabilities();
-        if (enCap.isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR)) {
-            mediaFormat.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR);
+        if (enCap.isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR)) {
+            mediaFormat.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR);
         }
+
+        Capabilities.CodecInfo codec = Capabilities.getAvcSupportedFormatInfo();
 
         mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, this.videoBitrate);
         mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, fps);
         mediaFormat.setInteger(MediaFormat.KEY_CAPTURE_RATE, fps);
         mediaFormat.setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1000000 / fps);
-        mediaFormat.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileHigh);
-        mediaFormat.setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.AVCLevel5);
+        mediaFormat.setInteger(MediaFormat.KEY_PROFILE, codec.mHighestProfile);
+        mediaFormat.setInteger(MediaFormat.KEY_LEVEL, codec.mHighestLevel);
         // WE DO NOT KNOWN IF IT REALLY WORK
         mediaFormat.setInteger(MediaFormat.KEY_LATENCY, 0);
         mediaFormat.setInteger(MediaFormat.KEY_PRIORITY, 0x00);
         // microseconds
         // mediaFormat.setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 40000);
 
-        int encodeWidth = this.width;
-        int encodeHeight = this.height;
-
+        /*
         int lowest = this.width > this.height ? this.height : this.width;
 
         if (lowest > 720) {
             encodeWidth = this.width * 720 / lowest;
             encodeHeight = this.height * 720 / lowest;
         }
+        */
 
-        mediaFormat.setInteger(MediaFormat.KEY_WIDTH, encodeWidth);
-        mediaFormat.setInteger(MediaFormat.KEY_HEIGHT, encodeHeight);
+        mediaFormat.setInteger(MediaFormat.KEY_WIDTH, width);
+        mediaFormat.setInteger(MediaFormat.KEY_HEIGHT, height);
 
         mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
         mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2);
         mediaCodec.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-
-
 
         sf = mediaCodec.createInputSurface();
 

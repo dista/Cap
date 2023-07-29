@@ -1,11 +1,20 @@
 package com.dista.org.cap.util;
 
+import android.graphics.Point;
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecList;
 import android.media.MediaFormat;
 import android.media.MediaCodecInfo.CodecProfileLevel;
+import android.util.DisplayMetrics;
+import android.view.Display;
+
+import com.dista.org.cap.CaptureService;
 
 public class Capabilities {
+    static public int densityDpi;
+    static public int width;
+    static public int height;
+
     public static class CodecInfo {
         public int mMaxW;
         public int mMaxH;
@@ -15,6 +24,10 @@ public class Capabilities {
         public int mHighestLevel;
 
         public String mHighestLevelStr;
+
+        public int mHighestProfile;
+
+        public String mHighestProfileStr;
     };
 
     private static MediaCodecInfo selectCodec(String mimeType) {
@@ -35,26 +48,6 @@ public class Capabilities {
     }
 
     private static String avcLevelToString(int level) {
-        //        public static final int AVCLevel1 = 1;
-        //        public static final int AVCLevel11 = 4;
-        //        public static final int AVCLevel12 = 8;
-        //        public static final int AVCLevel13 = 16;
-        //        public static final int AVCLevel1b = 2;
-        //        public static final int AVCLevel2 = 32;
-        //        public static final int AVCLevel21 = 64;
-        //        public static final int AVCLevel22 = 128;
-        //        public static final int AVCLevel3 = 256;
-        //        public static final int AVCLevel31 = 512;
-        //        public static final int AVCLevel32 = 1024;
-        //        public static final int AVCLevel4 = 2048;
-        //        public static final int AVCLevel41 = 4096;
-        //        public static final int AVCLevel42 = 8192;
-        //        public static final int AVCLevel5 = 16384;
-        //        public static final int AVCLevel51 = 32768;
-        //        public static final int AVCLevel52 = 65536;
-        //        public static final int AVCLevel6 = 131072;
-        //        public static final int AVCLevel61 = 262144;
-        //        public static final int AVCLevel62 = 524288;
         switch (level) {
             case CodecProfileLevel.AVCLevel1:
                 return "AVCLevel1";
@@ -99,6 +92,31 @@ public class Capabilities {
         return "UnknownLevel";
     }
 
+    static private String avcProfileToString(int profile) {
+        switch (profile) {
+            case CodecProfileLevel.AVCProfileBaseline:
+                return "AVCProfileBaseline";
+            case CodecProfileLevel.AVCProfileConstrainedBaseline:
+                return "AVCProfileConstrainedBaseline";
+            case CodecProfileLevel.AVCProfileConstrainedHigh:
+                return "AVCProfileConstrainedHigh";
+            case CodecProfileLevel.AVCProfileExtended:
+                return "AVCProfileExtended";
+            case CodecProfileLevel.AVCProfileHigh:
+                return "AVCProfileHigh";
+            case CodecProfileLevel.AVCProfileHigh10:
+                return "AVCProfileHigh10";
+            case CodecProfileLevel.AVCProfileHigh422:
+                return "AVCProfileHigh422";
+            case CodecProfileLevel.AVCProfileHigh444:
+                return "AVCProfileHigh444";
+            case CodecProfileLevel.AVCProfileMain:
+                return "AVCProfileMain";
+        }
+
+        return "UnknownProfile";
+    }
+
     public static CodecInfo getAvcSupportedFormatInfo() {
         MediaCodecInfo mediaCodecInfo = selectCodec(MediaFormat.MIMETYPE_VIDEO_AVC);
         MediaCodecInfo.CodecCapabilities cap = mediaCodecInfo.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC);
@@ -107,9 +125,11 @@ public class Capabilities {
         }
         CodecInfo info = new CodecInfo();
         int highestLevel = 0;
+        int highestProfile = 0;
         for (MediaCodecInfo.CodecProfileLevel lvl : cap.profileLevels) {
             if (lvl.level > highestLevel) {
                 highestLevel = lvl.level;
+                highestProfile = lvl.profile;
             }
         }
         int maxW = 0;
@@ -163,12 +183,15 @@ public class Capabilities {
                 fps = 30;
                 break;
         }
+
         info.mMaxW = maxW;
         info.mMaxH = maxH;
         info.mFps = fps;
         info.mBitRate = bitRate;
         info.mHighestLevel = highestLevel;
         info.mHighestLevelStr = avcLevelToString(highestLevel);
+        info.mHighestProfile = highestProfile;
+        info.mHighestProfileStr = avcProfileToString(highestProfile);
         return info;
     }
 }

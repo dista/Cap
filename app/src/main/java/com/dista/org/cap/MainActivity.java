@@ -36,6 +36,7 @@ import com.dista.org.cap.exception.RtmpException;
 import com.dista.org.cap.media.AVMetaData;
 import com.dista.org.cap.net.RtmpClient;
 import com.dista.org.cap.proto.Amf;
+import com.dista.org.cap.util.Capabilities;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -92,6 +93,16 @@ public class MainActivity extends Activity {
         streamStatus = (TextView)findViewById(R.id.streamStatus);
 
         ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION);
+
+        DisplayMetrics metrics = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(metrics);
+        Capabilities.densityDpi = metrics.densityDpi;
+
+        Display display = getWindowManager().getDefaultDisplay();
+        Point size = new Point();
+        display.getSize(size);
+        Capabilities.width = size.x;
+        Capabilities.height = size.y;
 
         timer.schedule(new TimerTask() {
             @Override
