@@ -216,12 +216,17 @@ public class MainActivity extends Activity {
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
+        Class<?> cls = null;
+
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
-            Intent intent = new Intent(this, SettingActivity.class);
-            startActivity(intent);
-            return true;
+            cls = SettingActivity.class;
+        } else if (id == R.id.action_cap) {
+            cls = CapabilitiesActivity.class;
         }
+
+        Intent intent = new Intent(this, cls);
+        startActivity(intent);
 
         return super.onOptionsItemSelected(item);
     }

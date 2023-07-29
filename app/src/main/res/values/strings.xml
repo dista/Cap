@@ -5,6 +5,7 @@
     <string name="action_settings">设置</string>
     <string name="start_failed">请求失败</string>
     <string name="title_activity_setting">Cap设置</string>
+    <string name="action_cap">设备信息</string>
 
     <string-array name="audio_codec">
         <item>AAC</item>

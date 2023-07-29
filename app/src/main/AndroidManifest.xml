@@ -9,33 +9,36 @@
         android:allowBackup="true"
         android:icon="@drawable/ic_toggle_radio_button_on"
         android:label="@string/app_name"
-        android:theme="@style/AppTheme" >
+        android:theme="@style/AppTheme">
+        <activity
+            android:name=".CapabilitiesActivity"
+            android:exported="false"
+            android:label="设备信息"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/CustomActionBarTheme"
+            />
         <activity
             android:name=".MainActivity"
+            android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/CustomActionBarTheme"
-            android:exported="true">
+            android:theme="@style/CustomActionBarTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
         <activity
             android:name=".SettingActivity"
             android:label="@string/title_activity_setting"
             android:parentActivityName=".MainActivity"
-            android:theme="@style/CustomActionBarTheme"
-            >
-        </activity>
+            android:theme="@style/CustomActionBarTheme"></activity>
 
         <service
             android:name=".CaptureService"
-            android:foregroundServiceType="mediaProjection"
             android:enabled="true"
-            android:exported="true" >
-        </service>
+            android:exported="true"
+            android:foregroundServiceType="mediaProjection"></service>
     </application>
 
 </manifest>
