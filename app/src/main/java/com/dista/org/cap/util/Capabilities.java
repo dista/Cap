@@ -117,6 +117,31 @@ public class Capabilities {
         return "UnknownProfile";
     }
 
+    static private int profileOrder(int profile) {
+        switch (profile) {
+            case CodecProfileLevel.AVCProfileBaseline:
+                return 11;
+            case CodecProfileLevel.AVCProfileConstrainedBaseline:
+                return 10;
+            case CodecProfileLevel.AVCProfileConstrainedHigh:
+                return 20;
+            case CodecProfileLevel.AVCProfileExtended:
+                return 0;
+            case CodecProfileLevel.AVCProfileHigh:
+                return 30;
+            case CodecProfileLevel.AVCProfileHigh10:
+                return 17;
+            case CodecProfileLevel.AVCProfileHigh422:
+                return 18;
+            case CodecProfileLevel.AVCProfileHigh444:
+                return 19;
+            case CodecProfileLevel.AVCProfileMain:
+                return 15;
+        }
+
+        return 0;
+    }
+
     public static CodecInfo getAvcSupportedFormatInfo() {
         MediaCodecInfo mediaCodecInfo = selectCodec(MediaFormat.MIMETYPE_VIDEO_AVC);
         MediaCodecInfo.CodecCapabilities cap = mediaCodecInfo.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC);
@@ -126,10 +151,17 @@ public class Capabilities {
         CodecInfo info = new CodecInfo();
         int highestLevel = 0;
         int highestProfile = 0;
+        int highestOrder = -1;
         for (MediaCodecInfo.CodecProfileLevel lvl : cap.profileLevels) {
-            if (lvl.level > highestLevel) {
-                highestLevel = lvl.level;
+            int order = profileOrder(lvl.profile);
+            if (order > highestOrder) {
+                highestOrder = order;
                 highestProfile = lvl.profile;
+                highestLevel = 0;
+            }
+
+            if (order == highestOrder && lvl.level > highestLevel) {
+                highestLevel = lvl.level;
             }
         }
         int maxW = 0;
