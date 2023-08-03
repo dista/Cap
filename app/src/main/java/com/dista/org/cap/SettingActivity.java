@@ -23,6 +23,7 @@ public class SettingActivity extends Activity {
     private EditText ipPortView;
     private EditText pathView;
     private EditText bitrateView;
+    private EditText fpsView;
     private Button saveButton;
     private CheckBox cb;
     private CheckBox landscape;
@@ -38,6 +39,7 @@ public class SettingActivity extends Activity {
         String ipPort = sp.getString("ip_port", "");
         final String path = sp.getString("path", "");
         int bitrate = sp.getInt("bitrate", 1000);
+        int fps = sp.getInt("fps", 15);
         boolean ignoreAudio = sp.getBoolean("ignore_audio", false);
         boolean isLandscape = sp.getBoolean("landscape", false);
         String selectAudioCodec = sp.getString("audio_codec", "AAC");
@@ -52,6 +54,9 @@ public class SettingActivity extends Activity {
 
         bitrateView = (EditText)findViewById(R.id.bitrate);
         bitrateView.setText(Integer.toString(bitrate));
+
+        fpsView = (EditText)findViewById(R.id.fps);
+        fpsView.setText(Integer.toString(fps));
 
         cb = (CheckBox)findViewById(R.id.ignore_audio);
         cb.setChecked(ignoreAudio);
@@ -90,6 +95,7 @@ public class SettingActivity extends Activity {
                 edit.putString("ip_port", String.valueOf(ipPortView.getText()));
                 edit.putString("path", String.valueOf(pathView.getText()));
                 edit.putInt("bitrate", Integer.valueOf(String.valueOf(bitrateView.getText())));
+                edit.putInt("fps", Integer.valueOf(String.valueOf(fpsView.getText())));
                 edit.putBoolean("ignore_audio", cb.isChecked());
                 edit.putBoolean("landscape", landscape.isChecked());
                 edit.putString("audio_codec", audio_codec.getSelectedItem().toString());

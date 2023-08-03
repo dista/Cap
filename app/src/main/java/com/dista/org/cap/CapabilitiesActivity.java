@@ -6,7 +6,10 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.widget.TextView;
 
+import com.dista.org.cap.media.Recorder;
 import com.dista.org.cap.util.Capabilities;
+
+import java.util.HashMap;
 
 public class CapabilitiesActivity extends Activity {
 
@@ -17,6 +20,7 @@ public class CapabilitiesActivity extends Activity {
         setContentView(R.layout.activity_capabilities);
 
         Capabilities.CodecInfo codec = Capabilities.getAvcSupportedFormatInfo();
+        HashMap<String, Integer> dem = Recorder.getEncodeWithHeight(Capabilities.width, Capabilities.height);
 
         TextView txt = (TextView)findViewById(R.id.cap_txt);
 
@@ -47,6 +51,13 @@ public class CapabilitiesActivity extends Activity {
         sb.append("\n");
         sb.append("    densityDpi:");
         sb.append(Capabilities.densityDpi);
+        sb.append("\n");
+        sb.append("  Encode\n");
+        sb.append("    encodeWidth:");
+        sb.append(dem.get("width"));
+        sb.append("\n");
+        sb.append("    encodeHeight:");
+        sb.append(dem.get("height"));
         sb.append("\n");
 
         txt.append(sb.toString());

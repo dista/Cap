@@ -101,8 +101,9 @@ public class CaptureService extends Service implements Recorder.StateChange{
                 audioCodec = AudioCodec.OPUS;
             }
 
+            int fps = sp.getInt("fps", 15);
             recorder = new Recorder(width, height, DENSITY, sp.getInt("bitrate", 1000) * 1000,
-                    ignoreAudio, this, audioCodec, sampleRate, channel);
+                    fps, ignoreAudio, this, audioCodec, sampleRate, channel);
             recorder.setMediaProjectionManagerValues(mm, code, data);
             recorder.setRtmpParams(host, port, path);
 

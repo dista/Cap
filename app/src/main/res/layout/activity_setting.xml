@@ -50,9 +50,39 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textAppearance="?android:attr/textAppearanceSmall"
+        android:text="视频帧率"
+        android:id="@+id/textViewfps"
+        android:layout_below="@+id/path"
+        android:layout_alignParentStart="true" />
+
+    <EditText
+        android:id="@+id/fps"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/textViewfps"
+        android:layout_alignParentStart="true"
+        android:ems="4"
+        android:inputType="numberSigned"
+        android:minHeight="48dp" />
+
+    <TextView
+        android:id="@+id/textViewfpsTxt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@+id/fps"
+        android:layout_alignBottom="@+id/fps"
+        android:layout_toEndOf="@+id/fps"
+        android:gravity="center"
+        android:text="FPS"
+        android:textAppearance="?android:attr/textAppearanceSmall" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
         android:text="视频码率"
         android:id="@+id/textView3"
-        android:layout_below="@+id/path"
+        android:layout_below="@+id/fps"
         android:layout_alignParentStart="true" />
 
     <EditText

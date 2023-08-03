@@ -31,6 +31,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created by dista on 2015/8/20.
@@ -44,6 +46,7 @@ public class Recorder {
     private int height;
     private int density;
     private int videoBitrate;
+    private int videoFps;
     private boolean exit;
 
     private MediaProjectionManager mpMgr;
@@ -83,7 +86,7 @@ public class Recorder {
     }
 
     public Recorder(int width, int height, int density,
-                    int videoBitrate, boolean ignoreAudio,
+                    int videoBitrate, int videoFps, boolean ignoreAudio,
                     StateChange st,
                     AudioCodec audioCodec,
                     int audioSampleRate,
@@ -98,6 +101,7 @@ public class Recorder {
         this.audioCodec = audioCodec;
         this.audioSampleRate = audioSampleRate;
         this.audioChannel = audioChannel;
+        this.videoFps = videoFps;
         connectingServer = false;
     }
 
@@ -320,7 +324,7 @@ public class Recorder {
                     meta.videoHeight = height;
                     meta.videoWidth = width;
                     meta.videoDataRate = videoBitrate / 1000;
-                    meta.videoFrameRate = 25;
+                    meta.videoFrameRate = videoFps;
                     meta.hasAudio = !ignoreAudio;
                     meta.audioMIMEType = MediaFormat.MIMETYPE_AUDIO_AAC;
 
@@ -456,6 +460,39 @@ public class Recorder {
         releaseResource();
     }
 
+    public static HashMap<String, Integer> getEncodeWithHeight(int w, int h) {
+        int lowest = w > h ? h : w;
+        int encodeWidth = w;
+        int encodeHeight = h;
+        int maxLowest = 1080;
+        if (lowest > maxLowest) {
+            encodeWidth = w * maxLowest / lowest;
+            encodeHeight = h * maxLowest / lowest;
+        }
+
+        MediaCodec mc = null;
+        int alignWidth = 2;
+        int alighHeight = 2;
+        try {
+            mc = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
+            MediaCodecInfo.CodecCapabilities cap = mc.getCodecInfo().getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC);
+            MediaCodecInfo.VideoCapabilities vc = cap.getVideoCapabilities();
+            alignWidth = vc.getWidthAlignment();
+            alighHeight = vc.getHeightAlignment();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        encodeWidth = encodeWidth / alignWidth * alignWidth;
+        encodeHeight = encodeHeight / alighHeight * alighHeight;
+
+        HashMap<String, Integer> ret = new HashMap<String, Integer>();
+        ret.put("width", encodeWidth);
+        ret.put("height", encodeHeight);
+
+        return ret;
+    }
+
     private void configureVideoEncoder() throws IOException {
         if (this.mpMgr == null) {
             throw new IllegalArgumentException("mm is null");
@@ -465,41 +502,32 @@ public class Recorder {
 
         mediaCodec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
 
-        int fps = 15;
-
         MediaFormat mediaFormat = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, this.width, this.height);
 
         MediaCodecInfo.CodecCapabilities cap = mediaCodec.getCodecInfo().getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC);
         MediaCodecInfo.EncoderCapabilities enCap = cap.getEncoderCapabilities();
-        if (enCap.isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR)) {
-            mediaFormat.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR);
+        if (enCap.isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR)) {
+            mediaFormat.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR);
         }
 
         Capabilities.CodecInfo codec = Capabilities.getAvcSupportedFormatInfo();
 
         mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, this.videoBitrate);
-        mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, fps);
-        mediaFormat.setInteger(MediaFormat.KEY_CAPTURE_RATE, fps);
+        mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, this.videoFps);
+        mediaFormat.setInteger(MediaFormat.KEY_CAPTURE_RATE, this.videoFps);
         //mediaFormat.setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1000000 / fps * 2);
         mediaFormat.setInteger(MediaFormat.KEY_PROFILE, codec.mHighestProfile);
         mediaFormat.setInteger(MediaFormat.KEY_LEVEL, codec.mHighestLevel);
         // WE DO NOT KNOWN IF IT REALLY WORK
-        mediaFormat.setInteger(MediaFormat.KEY_LATENCY, 0);
-        mediaFormat.setInteger(MediaFormat.KEY_PRIORITY, 0x00);
+        //mediaFormat.setInteger(MediaFormat.KEY_LATENCY, 0);
+        //mediaFormat.setInteger(MediaFormat.KEY_PRIORITY, 0x00);
         // microseconds
         // mediaFormat.setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 40000);
 
-        /*
-        int lowest = this.width > this.height ? this.height : this.width;
+        HashMap<String, Integer> dem = getEncodeWithHeight(this.width, this.height);
 
-        if (lowest > 720) {
-            encodeWidth = this.width * 720 / lowest;
-            encodeHeight = this.height * 720 / lowest;
-        }
-        */
-
-        mediaFormat.setInteger(MediaFormat.KEY_WIDTH, width);
-        mediaFormat.setInteger(MediaFormat.KEY_HEIGHT, height);
+        mediaFormat.setInteger(MediaFormat.KEY_WIDTH, dem.get("width"));
+        mediaFormat.setInteger(MediaFormat.KEY_HEIGHT, dem.get("height"));
 
         mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
         mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2);
